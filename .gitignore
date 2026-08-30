@@ -26,6 +26,7 @@ jspm_packages/
 # Build outputs
 dist/
 dist-ssr/
+.vite/
 *.local
 
 # Cloudflare Wrangler & D1 / R2 local states
