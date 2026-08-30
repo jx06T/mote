@@ -1,5 +1,5 @@
-import { QuickNotesAPI, MaterialsAPI, EssaysAPI, VocabularyAPI } from './api';
-import { QuickNote, Material, Essay, HardCharacter } from '../types';
+import { QuickNotesAPI, MaterialsAPI, EssaysAPI, VocabularyAPI, PromptsAPI } from './api';
+import { QuickNote, Material, Essay, HardCharacter, PromptItem } from '../types';
 import { storage, STORAGE_KEYS } from './storage';
 
 export interface SyncResult {
@@ -10,23 +10,29 @@ export interface SyncResult {
 
 export const OfflineSyncManager = {
   /**
-   * 將本機所有暫存資料一次性同步至雲端 D1 資料庫
+   * 將訪客在本地累積的所有暫存資料（筆記、素材、作文草稿與歷程、生難字、自訂題目）
+   * 一次性安全同步至已登入使用者的 Cloudflare D1 雲端資料庫
    */
   async syncToCloud(): Promise<SyncResult> {
     let syncedCount = 0;
     const errors: string[] = [];
 
-    // 1. 同步隨手筆記
+    // 1. 同步隨手筆記 (Quick Notes)
     try {
       const notes = storage.local.get<QuickNote[]>(STORAGE_KEYS.QUICK_NOTES);
       if (notes && notes.length > 0) {
-        const tempNotes = notes.filter((n) => n.id.startsWith('temp_') || n.id.startsWith('qn_'));
+        const tempNotes = notes.filter(
+          (n) => n.id.startsWith('temp_') || n.id.startsWith('qn_')
+        );
 
         for (const note of tempNotes) {
           try {
-            await QuickNotesAPI.create(note.content);
+            const created = await QuickNotesAPI.create(note.content);
+            if (note.status && note.status !== 'active' && created?.id) {
+              await QuickNotesAPI.updateStatus(created.id, note.status);
+            }
             syncedCount++;
-          } catch (err) {
+          } catch (err: any) {
             console.warn('[Sync Note Failed]', err);
           }
         }
@@ -37,7 +43,7 @@ export const OfflineSyncManager = {
       errors.push(`Notes: ${err.message}`);
     }
 
-    // 2. 同步素材卡
+    // 2. 同步素材卡 (Materials)
     try {
       const materials = storage.local.get<Material[]>(STORAGE_KEYS.MATERIALS);
       if (materials && materials.length > 0) {
@@ -47,9 +53,21 @@ export const OfflineSyncManager = {
 
         for (const mat of tempMaterials) {
           try {
-            await MaterialsAPI.save(mat);
+            await MaterialsAPI.save({
+              title: mat.title,
+              story: mat.story,
+              people: mat.people,
+              time: mat.time || mat.time_desc,
+              location: mat.location || mat.location_desc,
+              scene: mat.scene || mat.scene_desc,
+              dialogue: mat.dialogue || mat.dialogue_desc,
+              emotion: mat.emotion || mat.emotion_desc,
+              reflection: mat.reflection || mat.reflection_desc,
+              themes: mat.themes,
+              tags: mat.tags,
+            });
             syncedCount++;
-          } catch (err) {
+          } catch (err: any) {
             console.warn('[Sync Material Failed]', err);
           }
         }
@@ -59,25 +77,33 @@ export const OfflineSyncManager = {
       errors.push(`Materials: ${err.message}`);
     }
 
-    // 3. 同步作文草稿
+    // 3. 同步作文草稿與修改歷程 (Essays & Operations)
     try {
       const essays = storage.local.get<Essay[]>(STORAGE_KEYS.ESSAYS);
       if (essays && essays.length > 0) {
         const tempEssays = essays.filter(
-          (e) => e.id.startsWith('temp_') || e.id.startsWith('essay_')
+          (e) => e.id.startsWith('temp_') || e.id.startsWith('esy_') || e.id.startsWith('essay_')
         );
 
         for (const essay of tempEssays) {
           try {
+            // 讀取該篇作文在本地留存的操作紀錄
+            const opsKey = `${STORAGE_KEYS.ESSAY_OPS_PREFIX}${essay.id}`;
+            const operations = storage.local.get<any[]>(opsKey, []) || [];
+
             await EssaysAPI.save({
               prompt_id: essay.prompt_id,
               title: essay.title,
               current_content: essay.current_content,
               word_count: essay.word_count,
               status: essay.status,
+              operations,
             });
+
+            // 清除該篇作文的本地歷程暫存
+            storage.local.remove(opsKey);
             syncedCount++;
-          } catch (err) {
+          } catch (err: any) {
             console.warn('[Sync Essay Failed]', err);
           }
         }
@@ -87,19 +113,19 @@ export const OfflineSyncManager = {
       errors.push(`Essays: ${err.message}`);
     }
 
-    // 4. 同步生難字庫
+    // 4. 同步生難字庫 (Vocabulary)
     try {
       const vocabList = storage.local.get<HardCharacter[]>(STORAGE_KEYS.VOCABULARY);
       if (vocabList && vocabList.length > 0) {
         const tempVocab = vocabList.filter(
-          (v) => v.id.startsWith('temp_') || v.id.startsWith('hc_')
+          (v) => v.id.startsWith('temp_') || v.id.startsWith('voc_') || v.id.startsWith('hc_')
         );
 
         for (const vocab of tempVocab) {
           try {
             await VocabularyAPI.add(vocab.character_text, vocab.zhuyin);
             syncedCount++;
-          } catch (err) {
+          } catch (err: any) {
             console.warn('[Sync Vocabulary Failed]', err);
           }
         }
@@ -107,6 +133,32 @@ export const OfflineSyncManager = {
       }
     } catch (err: any) {
       errors.push(`Vocabulary: ${err.message}`);
+    }
+
+    // 5. 同步自訂題目 (Custom Prompts)
+    try {
+      const promptList = storage.local.get<PromptItem[]>(STORAGE_KEYS.PROMPTS);
+      if (promptList && promptList.length > 0) {
+        const tempPrompts = promptList.filter(
+          (p) => p.id.startsWith('temp_') || p.id.startsWith('pr_custom_')
+        );
+
+        for (const prompt of tempPrompts) {
+          try {
+            await PromptsAPI.create({
+              title: prompt.title,
+              raw_text: prompt.raw_text,
+              corrected_text: prompt.corrected_text,
+            });
+            syncedCount++;
+          } catch (err: any) {
+            console.warn('[Sync Prompt Failed]', err);
+          }
+        }
+        storage.local.remove(STORAGE_KEYS.PROMPTS);
+      }
+    } catch (err: any) {
+      errors.push(`Prompts: ${err.message}`);
     }
 
     return {
