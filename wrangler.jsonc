@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mote-api",
+  "main": "worker/src/index.ts",
+  "compatibility_date": "2024-10-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "ENV": "development"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mote-db",
+      "database_id": "local-mote-db"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "STORAGE",
+      "bucket_name": "mote-storage"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "local-kv"
+    }
+  ]
+}
