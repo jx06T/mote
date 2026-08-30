@@ -404,13 +404,16 @@ export const PromptsAPI = {
 export const EssaysAPI = {
   async list(): Promise<Essay[]> {
     if (!isAuthenticated()) {
-      return storage.local.get<Essay[]>(STORAGE_KEYS.ESSAYS, []) || [];
+      const items = storage.local.get<Essay[]>(STORAGE_KEYS.ESSAYS, []) || [];
+      return items.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
     }
 
     try {
-      return await fetchJSON<Essay[]>('/essays');
+      const res = await fetchJSON<Essay[]>('/essays');
+      return (res || []).sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
     } catch {
-      return storage.local.get<Essay[]>(STORAGE_KEYS.ESSAYS, []) || [];
+      const items = storage.local.get<Essay[]>(STORAGE_KEYS.ESSAYS, []) || [];
+      return items.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
     }
   },
 
@@ -429,6 +432,27 @@ export const EssaysAPI = {
       const item = list.find((e) => e.id === id);
       const operations = storage.local.get<any[]>(`${STORAGE_KEYS.ESSAY_OPS_PREFIX}${id}`, []) || [];
       return item ? { essay: item, operations } : null;
+    }
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const list = storage.local.get<Essay[]>(STORAGE_KEYS.ESSAYS, []) || [];
+    const filtered = list.filter((e) => e.id !== id);
+    storage.local.set(STORAGE_KEYS.ESSAYS, filtered);
+    storage.local.remove(`${STORAGE_KEYS.ESSAY_OPS_PREFIX}${id}`);
+
+    if (!isAuthenticated()) {
+      return true;
+    }
+
+    try {
+      await fetchJSON(`/essays/${id}`, {
+        method: 'DELETE',
+      });
+      return true;
+    } catch (err) {
+      console.warn('[Delete Essay fallback to local only]', err);
+      return true;
     }
   },
 

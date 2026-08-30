@@ -150,3 +150,39 @@ essaysRouter.post('/assist', authMiddleware, async (c) => {
   const result = await aiService.assistWriting(body.selectedText, body.action, body.fullContext);
   return c.json(result);
 });
+
+// 5. Delete essay & its revision operations (Members only on cloud D1)
+essaysRouter.delete('/:id', authMiddleware, async (c) => {
+  const id = c.req.param('id');
+  const userId = c.get('userId');
+
+  if (!userId || !c.env.DB) {
+    return c.json({ error: 'Unauthorized or database unavailable' }, 401);
+  }
+
+  try {
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM essays WHERE id = ? AND user_id = ?'
+    )
+      .bind(id, userId)
+      .first();
+
+    if (!existing) {
+      return c.json({ error: 'Essay not found' }, 404);
+    }
+
+    await c.env.DB.prepare('DELETE FROM essay_operations WHERE essay_id = ? AND user_id = ?')
+      .bind(id, userId)
+      .run();
+
+    await c.env.DB.prepare('DELETE FROM essays WHERE id = ? AND user_id = ?')
+      .bind(id, userId)
+      .run();
+
+    return c.json({ success: true, deletedId: id });
+  } catch (err) {
+    console.error('[D1 Delete Essay Error]', err);
+    return c.json({ error: 'Failed to delete essay' }, 500);
+  }
+});
+

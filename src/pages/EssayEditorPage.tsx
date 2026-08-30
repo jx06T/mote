@@ -111,12 +111,15 @@ export const EssayEditorPage: React.FC = () => {
       <div className="flex-1 overflow-hidden">
         {!isLoadingEssay && (
           <EssayEditor
+            key={essayIdParam || 'new_essay'}
             essayId={essayIdParam}
             initialTitle={initialEssayTitle}
             initialContent={initialEssayContent}
             promptTitle={promptTitle}
             promptText={promptText}
             onSubmitForAnalysis={handleSubmitForAnalysis}
+            onSelectEssay={(id) => navigate(`/editor?id=${id}`)}
+            onCreateNew={() => navigate('/editor')}
           />
         )}
       </div>

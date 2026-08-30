@@ -59,8 +59,13 @@
 - 題目資料：原始圖片、OCR 文字、人工修正後文字、題型、建立時間、使用紀錄。
 - 原始題目圖片永遠在 R2 中保存，OCR 結果必須支援人工校正。
 
-## 1.6 電子作文訓練與編輯器 (Essay Editor & Operation History)
+## 1.6 電子作文訓練、編輯器與文章庫 (Essay Editor, Library & Operation History)
 - 編輯器架構：基於 Tiptap / ProseMirror，模擬實際寫作思考過程。
+- 文章庫與歷史紀錄管理 (Essay Library & History)：
+  - 完整保存每篇作文草稿、標題、關聯題目、即時字數統計、建立時間、更新時間與狀態（草稿 draft、已交卷 submitted、已評析 analyzed）。
+  - 提供獨立文章庫檢視頁面（`/essays`）與編輯器內快速切換抽屜（`EssayListDrawer`），方便學生隨時回顧歷史文章、切換草稿或新建空白作文。
+  - 支援關鍵字搜尋、狀態篩選、文章刪除管理與一鍵繼續撰寫。
+  - 訪客模式於本地 LocalStorage 即時儲存，登入後無縫同步至 Cloudflare D1 雲端資料庫。
 - 編輯限制與歷史追蹤：
   - 即時連續輸入允許直接退格修改。
   - 歷史長段文字刪除不直接永久清空，而是記錄為 `DELETE operation`。

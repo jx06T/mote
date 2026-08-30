@@ -128,14 +128,14 @@ export const DashboardPage: React.FC = () => {
         </button>
 
         <button
-          onClick={() => navigate('/editor')}
+          onClick={() => navigate('/essays')}
           className="flex flex-col items-center justify-center p-3.5 bg-surface border border-border-subtle hover:border-primary/40 rounded-xl transition-all shadow-xs group text-center"
         >
           <div className="w-9 h-9 rounded-lg bg-surface-elevated group-hover:bg-primary/10 flex items-center justify-center text-text-soft group-hover:text-primary mb-2 transition-colors">
             <PenTool className="w-5 h-5" />
           </div>
-          <span className="text-xs font-semibold text-text-main">電子寫作</span>
-          <span className="text-[10px] text-text-muted mt-0.5">AI 修辭引導</span>
+          <span className="text-xs font-semibold text-text-main">文章與寫作</span>
+          <span className="text-[10px] text-text-muted mt-0.5">{essays.length} 篇作文記錄</span>
         </button>
 
         <button
@@ -189,6 +189,60 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Recent Essays Section */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold text-text-soft flex items-center">
+            <PenTool className="w-3.5 h-3.5 mr-1 text-primary" />
+            近期寫作紀錄與草稿
+          </h3>
+          <button
+            onClick={() => navigate('/essays')}
+            className="text-xs text-primary hover:text-primary-hover font-medium flex items-center"
+          >
+            文章庫
+            <ArrowRight className="w-3 h-3 ml-0.5" />
+          </button>
+        </div>
+
+        {essays.length === 0 ? (
+          <div className="py-6 text-center text-xs text-text-muted bg-surface rounded-xl border border-border-subtle p-4 space-y-1">
+            <p>尚未建立電子作文草稿。</p>
+            <p className="text-[11px]">點擊上方「電子寫作」即可開始自由書寫或挑選題目練習！</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {essays.slice(0, 2).map((esy) => (
+              <div
+                key={esy.id}
+                onClick={() => navigate(`/editor?id=${esy.id}`)}
+                className="p-3.5 bg-surface border border-border-subtle hover:border-primary/40 rounded-xl transition-all shadow-xs cursor-pointer flex flex-col justify-between space-y-2 group"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-display font-bold text-xs text-text-main truncate group-hover:text-primary transition-colors">
+                      {esy.title?.trim() || '無標題作文'}
+                    </h4>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-elevated text-text-muted">
+                      {esy.status === 'analyzed' ? '已評析' : esy.status === 'submitted' ? '已交卷' : '草稿'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-soft line-clamp-2 leading-relaxed">
+                    {esy.current_content?.replace(/<[^>]*>?/gm, ' ') || '尚無內容...'}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between pt-1 text-[11px] text-text-muted">
+                  <span className="font-mono">{esy.word_count || 0} 字</span>
+                  <span className="text-primary font-medium group-hover:underline">
+                    繼續撰寫
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Recent Materials */}
       <div className="space-y-3">

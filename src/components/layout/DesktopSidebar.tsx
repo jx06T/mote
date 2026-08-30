@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Home, BookOpen, PenTool, Award, Sparkles, User, FileText, Lock, Cloud } from 'lucide-react';
+import { Home, BookOpen, PenTool, Award, Sparkles, User, FileText, Lock, Cloud, Layers } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Button } from '../ui/Button';
 
@@ -12,6 +12,7 @@ export const DesktopSidebar: React.FC = () => {
     { to: '/', label: '首頁總覽', icon: Home },
     { to: '/quick-notes', label: '隨手筆記', icon: FileText },
     { to: '/materials', label: '素材庫', icon: BookOpen },
+    { to: '/essays', label: '文章庫', icon: Layers },
     { to: '/editor', label: '電子寫作', icon: PenTool },
     { to: '/exams', label: '紙本模擬考', icon: Award, memberOnly: true },
     { to: '/analysis', label: '弱點分析', icon: Sparkles, memberOnly: true },

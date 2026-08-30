@@ -6,13 +6,14 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { SelectionToolbar } from './SelectionToolbar';
 import { AIResultModal } from './AIResultModal';
 import { RevisionTimeline, getParagraphNumber } from './RevisionTimeline';
+import { EssayListDrawer } from './EssayListDrawer';
 import { EssaysAPI, VocabularyAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
-import { Clock, Send, BookmarkCheck, FileText, Loader2 } from 'lucide-react';
+import { Clock, Send, BookmarkCheck, FileText, Loader2, Layers, Plus } from 'lucide-react';
 
 interface EssayEditorProps {
   essayId?: string;
@@ -21,6 +22,8 @@ interface EssayEditorProps {
   promptTitle?: string;
   promptText?: string;
   onSubmitForAnalysis: (title: string, content: string) => void;
+  onSelectEssay?: (essayId: string) => void;
+  onCreateNew?: () => void;
 }
 
 const formatToHtml = (content: string) => {
@@ -42,12 +45,15 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
   promptTitle,
   promptText,
   onSubmitForAnalysis,
+  onSelectEssay,
+  onCreateNew,
 }) => {
   const { checkAccess, openAuthModal } = useAuth();
   const { showToast } = useToast();
   const [currentEssayId, setCurrentEssayId] = useState<string | undefined>(essayId);
   const [title, setTitle] = useState(initialTitle);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
+  const [showListDrawer, setShowListDrawer] = useState(false);
   const [selectionPos, setSelectionPos] = useState<{ top: number; left: number } | null>(null);
   const [selectedText, setSelectedText] = useState('');
   const [selectedRange, setSelectedRange] = useState<{ from: number; to: number } | null>(null);
@@ -124,7 +130,7 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
           }
           if (data.essay?.current_content) {
             prevTextRef.current = data.essay.current_content;
-            if (editor && editor.isEmpty) {
+            if (editor) {
               editor.commands.setContent(formatToHtml(data.essay.current_content));
             }
           }
@@ -135,6 +141,38 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
     }
     loadEssayDetails();
   }, [currentEssayId, editor]);
+
+  const handleSelectEssay = async (newId: string) => {
+    if (onSelectEssay) {
+      onSelectEssay(newId);
+    } else {
+      setCurrentEssayId(newId);
+      try {
+        const data = await EssaysAPI.get(newId);
+        if (data?.essay) {
+          setTitle(data.essay.title || '無標題作文');
+          setOperations(data.operations || []);
+          prevTextRef.current = data.essay.current_content || '';
+          editor?.commands.setContent(formatToHtml(data.essay.current_content || ''));
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  const handleCreateNew = () => {
+    if (onCreateNew) {
+      onCreateNew();
+    } else {
+      setCurrentEssayId(undefined);
+      setTitle('無標題作文');
+      setOperations([]);
+      prevTextRef.current = '';
+      editor?.commands.setContent('<p></p>');
+      showToast('info', '已開啟新作文草稿');
+    }
+  };
 
   // Helper diff algorithm to extract changes
   const getDiff = (oldStr: string, newStr: string) => {
@@ -360,8 +398,29 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
   return (
     <div className="relative flex flex-col h-full bg-page-bg">
       {/* Editor Top Bar */}
-      <div className="sticky top-0 z-20 bg-surface/95 backdrop-blur-md border-b border-border-subtle px-4 py-2.5 flex items-center justify-between">
-        <div className="flex-1 mr-4">
+      <div className="sticky top-0 z-20 bg-surface/95 backdrop-blur-md border-b border-border-subtle px-4 py-2.5 flex items-center justify-between gap-2">
+        <div className="flex items-center space-x-1.5 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowListDrawer(true)}
+            className="text-xs h-7.5 px-2.5 rounded-lg bg-surface-elevated/70 hover:bg-surface-elevated border-border-subtle shadow-xs"
+            title="瀏覽歷史作文與草稿庫"
+          >
+            <Layers className="w-3.5 h-3.5 mr-1 text-primary" />
+            文章庫
+          </Button>
+
+          <button
+            onClick={handleCreateNew}
+            className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-surface-elevated transition-colors"
+            title="開啟新寫作草稿"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 min-w-0 mx-2">
           <input
             type="text"
             value={title}
@@ -370,15 +429,15 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
               setSaveStatus('saving');
             }}
             placeholder="請輸入作文標題..."
-            className="w-full bg-transparent border-0 font-display font-bold text-lg text-text-main focus:outline-none placeholder:opacity-40"
+            className="w-full bg-transparent border-0 font-display font-bold text-base sm:text-lg text-text-main focus:outline-none placeholder:opacity-40 truncate"
           />
         </div>
 
-        <div className="flex items-center space-x-3 text-xs shrink-0">
-          <span className="text-text-muted flex items-center">
+        <div className="flex items-center space-x-2 sm:space-x-3 text-xs shrink-0">
+          <span className="text-text-muted hidden sm:inline-flex items-center text-[11px]">
             {saveStatus === 'saving' ? '儲存中...' : '已儲存'}
           </span>
-          <span className="text-text-soft font-mono px-2 py-0.5 bg-surface-elevated border border-border-subtle rounded-md">
+          <span className="text-text-soft font-mono px-2 py-0.5 bg-surface-elevated border border-border-subtle rounded-md text-[11px]">
             {wordCount} 字
           </span>
           <button
@@ -398,7 +457,7 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
               }
               onSubmitForAnalysis(title, editor?.getText() || '');
             }}
-            className="text-xs py-1 px-3"
+            className="text-xs py-1 px-2.5 sm:px-3 h-7.5 rounded-lg"
           >
             <Send className="w-3.5 h-3.5 mr-1" />
             交卷評析
@@ -495,6 +554,15 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
           onLocate={handleLocateOperation}
         />
       </Modal>
+
+      {/* Essay List & History Management Drawer */}
+      <EssayListDrawer
+        isOpen={showListDrawer}
+        onClose={() => setShowListDrawer(false)}
+        currentEssayId={currentEssayId}
+        onSelectEssay={handleSelectEssay}
+        onCreateNewEssay={handleCreateNew}
+      />
     </div>
   );
 };

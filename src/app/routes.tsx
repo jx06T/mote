@@ -7,6 +7,7 @@ import { MaterialsPage } from '../pages/MaterialsPage';
 import { MaterialDetailPage } from '../pages/MaterialDetailPage';
 import { PromptPage } from '../pages/PromptPage';
 import { EssayEditorPage } from '../pages/EssayEditorPage';
+import { EssaysPage } from '../pages/EssaysPage';
 import { ExamPage } from '../pages/ExamPage';
 import { ExamSessionPage } from '../pages/ExamSessionPage';
 import { AnalysisPage } from '../pages/AnalysisPage';
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: 'materials', element: <MaterialsPage /> },
       { path: 'materials/:id', element: <MaterialDetailPage /> },
       { path: 'prompts', element: <PromptPage /> },
+      { path: 'essays', element: <EssaysPage /> },
       { path: 'editor', element: <EssayEditorPage /> },
       { path: 'exams', element: <ExamPage /> },
       { path: 'exams/session', element: <ExamSessionPage /> },

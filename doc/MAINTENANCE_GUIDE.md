@@ -36,7 +36,7 @@
 | `material_interview` | `true` (開放試用) | AI 追問訪談並產出素材卡 |
 | `materials_library` | `true` (開放試用) | 本機素材檢索與標籤篩選 |
 | `prompt_search` | `true` (開放試用) | 輸入題目由 AI 匹配素材 |
-| `essay_editor` | `true` (開放試用) | 紙質排版、字數統計與草稿儲存 |
+| `essay_editor` | `true` (開放試用) | 紙質排版、字數統計、草稿儲存、歷史文章庫管理與多篇切換 |
 | `essay_ai_assist` | **`false` (會員專屬)** | 選取文句進行比喻、仿寫、擴寫等六大修辭建議 |
 | `essay_analysis` | **`false` (會員專屬)** | 作文交卷評析與八大面向打分報告 |
 | `paper_mock_exam` | **`false` (會員專屬)** | 50 分鐘全真計時與多頁 OCR 校對 |

@@ -55,8 +55,10 @@
 - [x] 題目列表與自訂題目建立 (`PromptPage.tsx`)
 - [x] 題目相機拍照上傳模擬與 OCR 辨識介面
 
-### Phase 9: 電子作文編輯器 (Essay Editor)
+### Phase 9: 電子作文編輯器與文章庫 (Essay Editor & Library)
 - [x] Tiptap 作文編輯器配置 (`EssayEditor.tsx`)
+- [x] 文章歷史紀錄與草稿庫管理 (`EssaysPage.tsx`, `EssayListDrawer.tsx`, `EssayCard.tsx`)
+- [x] 多篇作文檢視、搜尋、狀態篩選、切換與刪除管理
 - [x] 字數即時統計與紙質筆記本排版
 - [x] 防抖自動儲存與狀態提示（`✓ 已儲存` / `↻ 儲存中`）
 

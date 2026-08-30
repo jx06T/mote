@@ -21,13 +21,13 @@ src/
 │   ├── quick-note/     # 隨手記錄輸入與列表
 │   ├── materials/      # 素材庫、素材卡、訪談對話介面
 │   ├── prompt/         # 題目庫、題目拍照上傳、OCR 預覽
-│   ├── editor/         # 電子作文 Tiptap 編輯器、操作紀錄、選字工具列
+│   ├── editor/         # 電子作文 Tiptap 編輯器、文章卡片 (EssayCard)、文章庫抽屜 (EssayListDrawer)、歷程時間軸 (RevisionTimeline)、選字工具列
 │   ├── exam/           # 模擬考計時器、多頁拍照上傳、OCR 校對
 │   ├── analysis/       # 作文分析報告、面向評分、雷達圖/優缺點卡
 │   ├── vocabulary/     # 難字管理與測驗卡片
 │   └── common/         # 跨功能共用展示元件
 │
-├── pages/              # 頁面級元件 (只負責路由、State 裝配、載入資料)
+├── pages/              # 頁面級元件 (EssaysPage, EssayEditorPage, MaterialsPage, DashboardPage 等)
 ├── hooks/              # 自定義 React Hooks
 ├── services/           # API 客戶端與 Worker 通訊層 (不放 AI Key)
 ├── stores/             # 全域狀態管理 (Zustand 或 Context)
@@ -40,8 +40,10 @@ src/
 ## 1.2 UI / UX 設計約束
 - **Mobile-first 優先**：主要視窗尺寸 375x812, 390x844, 430x932，適配平板 (768x1024) 與桌面。
 - **視覺調性**：安靜、專注、具備紙質筆記本質感，避免繁雜後台式密集表格與過量按鈕。
-- **編輯器約束**：
+- **編輯器與文章庫約束**：
   - 採用 Tiptap / ProseMirror。
+  - 完整保留學生所有歷史撰寫文章與草稿（包含標題、內容、字數、關聯題目、更新時間與歷程紀錄）。
+  - 提供獨立文章庫檢視頁（`/essays`）與編輯器頂部快速切換抽屜（`EssayListDrawer`）。
   - 即時編輯與歷史刪除行為分流處理。
   - AI 建議以彈出式面版呈現「原句」與「建議句」，採用後才寫入，絕不靜默覆蓋。
 
@@ -62,7 +64,7 @@ worker/
 │   │   ├── quickNotes.ts       # 隨手記錄 CRUD
 │   │   ├── materials.ts        # 素材庫與訪談對話
 │   │   ├── prompts.ts          # 題目管理與 OCR
-│   │   ├── essays.ts           # 電子作文與 Operation Log
+│   │   ├── essays.ts           # 電子作文 CRUD (GET list, GET :id, POST save, DELETE :id) 與 AI Assist
 │   │   ├── exams.ts            # 紙本模擬考與交卷管理
 │   │   ├── analysis.ts         # 作文 AI 分析報告
 │   │   └── vocabulary.ts       # 難字庫與測驗
