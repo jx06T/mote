@@ -46,7 +46,8 @@ triggers:
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
-  <!-- Apple PWA Meta -->
+  <!-- Apple & Standard PWA Meta -->
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <!-- black-translucent：讓內容延伸至狀態列後方，搭配 safe-area-inset 使用 -->
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -178,9 +179,12 @@ if (url.pathname.startsWith('/api/')) {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        if (response?.status === 200) {
-          // 網路成功：非同步更新快取，不阻塞回應
-          caches.open(API_CACHE).then(cache => cache.put(event.request, response.clone()));
+        if (response && response.status === 200) {
+          // 網路成功：在 caches.open 之前同步 clone，避免 response stream 已被消費
+          const responseToCache = response.clone();
+          caches.open(API_CACHE).then((cache) => {
+            cache.put(event.request, responseToCache).catch(() => {});
+          });
         }
         return response;
       })
@@ -202,16 +206,21 @@ if (url.pathname.startsWith('/api/')) {
 
 ```javascript
 // 排除 /assets/ 下的 Vite 打包靜態圖片（那些走策略 4）
-if (url.pathname.includes('/image') && !url.pathname.startsWith('/assets/')) {
+if (
+  (url.pathname.includes('/image') ||
+    url.pathname.match(/\.(png|jpg|jpeg|svg|webp|gif|ico)$/i)) &&
+  !url.pathname.startsWith('/assets/')
+) {
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       // 同步發起網路請求（背景更新快取）
       const fetchPromise = fetch(event.request)
         .then((networkResponse) => {
-          if (networkResponse?.status === 200) {
-            caches.open(IMAGE_CACHE).then(cache =>
-              cache.put(event.request, networkResponse.clone())
-            );
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(IMAGE_CACHE).then((cache) => {
+              cache.put(event.request, responseToCache).catch(() => {});
+            });
           }
           return networkResponse;
         })
@@ -236,11 +245,12 @@ if (event.request.mode === 'navigate') {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        if (response?.status === 200) {
+        if (response && response.status === 200) {
           // 統一寫入 SHELL_KEY（'/index.html'）
-          // 不論使用者造訪 /study/math 或 /search，都存同一份
-          // 避免 '/' 與 '/index.html' 各存一份、fallback 讀到其中一份舊的
-          caches.open(SHELL_CACHE).then(cache => cache.put(SHELL_KEY, response.clone()));
+          const responseToCache = response.clone();
+          caches.open(SHELL_CACHE).then((cache) => {
+            cache.put(SHELL_KEY, responseToCache).catch(() => {});
+          });
         }
         return response;
       })
@@ -251,7 +261,7 @@ if (event.request.mode === 'navigate') {
         if (cachedShell) return cachedShell;
         return new Response('離線且無可用頁面快取', {
           status: 503,
-          headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
         });
       })
   );
@@ -266,7 +276,18 @@ if (event.request.mode === 'navigate') {
 ### 策略 4：靜態資源 — Cache-First（Vite hash 資源）
 
 ```javascript
-if (event.request.method === 'GET') {
+if (
+  event.request.method === 'GET' &&
+  (url.pathname.startsWith('/assets/') ||
+    url.pathname.startsWith('/favicon.svg') ||
+    url.pathname.startsWith('/manifest.json') ||
+    url.pathname.startsWith('/icon-') ||
+    url.pathname.endsWith('.woff2') ||
+    url.pathname.endsWith('.woff') ||
+    url.pathname.endsWith('.ttf') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.endsWith('.js'))
+) {
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       // Cache hit：直接回傳，不觸網路（hash 不同代表是新版，直接快取）
@@ -274,8 +295,11 @@ if (event.request.method === 'GET') {
 
       return fetch(event.request)
         .then((response) => {
-          if (response?.status === 200) {
-            caches.open(SHELL_CACHE).then(cache => cache.put(event.request, response.clone()));
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(SHELL_CACHE).then((cache) => {
+              cache.put(event.request, responseToCache).catch(() => {});
+            });
           }
           return response;
         })
