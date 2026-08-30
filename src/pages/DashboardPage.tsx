@@ -20,8 +20,11 @@ import {
   Compass,
 } from 'lucide-react';
 
+import { useToast } from '../context/ToastContext';
+
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [quickNotes, setQuickNotes] = useState<QuickNote[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [essays, setEssays] = useState<Essay[]>([]);
@@ -52,15 +55,25 @@ export const DashboardPage: React.FC = () => {
   }, []);
 
   const handleSaveQuickNote = async (content: string) => {
-    await QuickNotesAPI.create(content);
-    await loadData();
+    try {
+      await QuickNotesAPI.create(content);
+      toast.success('隨手筆記已儲存！');
+      await loadData();
+    } catch (err: any) {
+      toast.error(err.message || '儲存筆記失敗');
+    }
   };
 
   const handleInterviewComplete = async (materialCard: any) => {
-    await MaterialsAPI.save(materialCard);
-    setActiveInterviewNote(null);
-    await loadData();
-    navigate('/materials');
+    try {
+      await MaterialsAPI.save(materialCard);
+      setActiveInterviewNote(null);
+      toast.success('已成功將對話整理為素材卡並存庫！');
+      await loadData();
+      navigate('/materials');
+    } catch (err: any) {
+      toast.error(err.message || '儲存素材卡失敗');
+    }
   };
 
   return (
@@ -190,16 +203,23 @@ export const DashboardPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {materials.slice(0, 2).map((mat) => (
-            <MaterialCard
-              key={mat.id}
-              material={mat}
-              onClick={() => navigate(`/materials/${mat.id}`)}
-              onUseForWriting={() => navigate(`/editor?materialId=${mat.id}`)}
-            />
-          ))}
-        </div>
+        {materials.length === 0 ? (
+          <div className="py-6 text-center text-xs text-text-muted bg-surface rounded-xl border border-border-subtle p-4 space-y-1">
+            <p>尚未建立個人素材卡。</p>
+            <p className="text-[11px]">在上方隨手記下一句話，點擊「深入這件事」即可由 AI 引導整理成素材卡！</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {materials.slice(0, 2).map((mat) => (
+              <MaterialCard
+                key={mat.id}
+                material={mat}
+                onClick={() => navigate(`/materials/${mat.id}`)}
+                onUseForWriting={() => navigate(`/editor?materialId=${mat.id}`)}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Weakness Summary Card */}

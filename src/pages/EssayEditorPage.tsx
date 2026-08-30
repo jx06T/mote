@@ -8,9 +8,12 @@ import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { BookOpen, Sparkles, X, ChevronRight } from 'lucide-react';
 
+import { useToast } from '../context/ToastContext';
+
 export const EssayEditorPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const promptTitle = searchParams.get('promptTitle') || '';
   const promptText = searchParams.get('promptText') || '';
@@ -35,21 +38,26 @@ export const EssayEditorPage: React.FC = () => {
   }, [materialId]);
 
   const handleSubmitForAnalysis = async (title: string, content: string) => {
-    if (!content.trim()) return;
+    if (!content.trim()) {
+      toast.warning('請先輸入作文內容後再送交評析。');
+      return;
+    }
     setIsEvaluating(true);
     try {
       // Save essay first
-      const saved = await EssaysAPI.save({
+      await EssaysAPI.save({
         title: title || promptTitle || '無標題作文',
         content,
         status: 'submitted',
       });
 
       // Trigger analysis
-      const res = await AnalysisAPI.evaluate(title, content, promptText);
+      const res = await AnalysisAPI.evaluate(title || promptTitle || '作文評析', content, promptText);
       setAnalysisResult(res.analysis);
-    } catch (err) {
+      toast.success('作文評析報告已完成！');
+    } catch (err: any) {
       console.error(err);
+      toast.error(err.message || '送交評析時發生錯誤，請重試。');
     } finally {
       setIsEvaluating(false);
     }
@@ -75,7 +83,7 @@ export const EssayEditorPage: React.FC = () => {
       {/* Main Editor Component */}
       <div className="flex-1 overflow-hidden">
         <EssayEditor
-          initialTitle={promptTitle || '當我轉身看見那道光'}
+          initialTitle={promptTitle || '無標題作文'}
           promptTitle={promptTitle}
           promptText={promptText}
           onSubmitForAnalysis={handleSubmitForAnalysis}

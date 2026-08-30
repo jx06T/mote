@@ -18,29 +18,43 @@ analysisRouter.post('/evaluate', async (c) => {
     promptText?: string;
   }>();
 
-  const ai = new AIService(c.env);
-  const result = await ai.analyzeEssay(
-    body.title || '作文',
-    body.content || '',
-    body.promptText
-  );
+  const title = body.title || '作文';
+  const content = (body.content || '').trim();
 
-  const id = 'ans_' + Date.now();
+  if (!content) {
+    return c.json({ error: '作文內容不可為空' }, 400);
+  }
+
+  const ai = new AIService(c.env);
+  const result = await ai.analyzeEssay(title, content, body.promptText);
+
+  const id = `ans_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   const now = Date.now();
 
   if (c.env.DB) {
     try {
-      await c.env.DB.prepare(
-        `INSERT INTO essay_analysis (id, essay_id, exam_submission_id, user_id, overall_summary, scores_json, strengths_json, weaknesses_json, next_practice_advice, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
+      await c.env.DB.prepare(`
+        INSERT INTO essay_analysis (
+          id, essay_id, exam_submission_id, user_id, prompt_match_score,
+          intent_depth_score, material_richness_score, structure_score,
+          description_score, language_score, emotion_score, conclusion_score,
+          overall_summary, strengths_json, weaknesses_json, next_practice_advice, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
         .bind(
           id,
           body.essayId || null,
           body.examId || null,
           userId,
+          result.scores.promptMatch,
+          result.scores.intentDepth,
+          result.scores.materialRichness,
+          result.scores.structure,
+          result.scores.description,
+          result.scores.language,
+          result.scores.emotion,
+          result.scores.conclusion,
           result.overallSummary,
-          JSON.stringify(result.scores),
           JSON.stringify(result.strengths),
           JSON.stringify(result.weaknesses),
           result.nextPracticeAdvice,
@@ -48,18 +62,22 @@ analysisRouter.post('/evaluate', async (c) => {
         )
         .run();
 
-      // Aggregate weaknesses
+      // Aggregate and update weaknesses in D1
       for (const w of result.weaknesses) {
-        await c.env.DB.prepare(
-          `INSERT INTO weaknesses (id, user_id, dimension, description, occurrence_count, recent_trend, created_at, updated_at)
-           VALUES (?, ?, ?, ?, 1, 'steady', ?, ?)
-           ON CONFLICT(id) DO UPDATE SET occurrence_count = occurrence_count + 1, updated_at = ?`
-        )
-          .bind('wk_' + Math.random().toString(36).substring(2, 8), userId, w.dimension, w.issue, now, now, now)
+        const wkId = `wk_${w.dimension}_${userId}`.slice(0, 50);
+        await c.env.DB.prepare(`
+          INSERT INTO weaknesses (id, user_id, dimension, description, occurrence_count, recent_trend, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 1, 'steady', ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            occurrence_count = occurrence_count + 1,
+            description = excluded.description,
+            updated_at = excluded.updated_at
+        `)
+          .bind(wkId, userId, w.dimension, w.issue, now, now)
           .run();
       }
     } catch (err) {
-      console.warn('[D1 Save Analysis Warning]', err);
+      console.error('[D1 Save Analysis Error]', err);
     }
   }
 
@@ -69,40 +87,62 @@ analysisRouter.post('/evaluate', async (c) => {
 // 2. Get user overall weakness report & trends
 analysisRouter.get('/weaknesses', async (c) => {
   const userId = c.get('userId');
-  if (c.env.DB) {
-    try {
-      const { results } = await c.env.DB.prepare(
-        'SELECT * FROM weaknesses WHERE user_id = ? ORDER BY occurrence_count DESC'
-      )
-        .bind(userId)
-        .all();
-      if (results && results.length > 0) return c.json(results);
-    } catch (err) {
-      console.warn('[D1 List Weaknesses Warning]', err);
-    }
+  if (!c.env.DB) {
+    return c.json([]);
   }
 
-  return c.json([
-    {
-      id: 'wk_01',
-      dimension: '結尾說理',
-      description: '末段常有直接說教或匆忙點題的傾向',
-      occurrence_count: 4,
-      recent_trend: 'improving',
-    },
-    {
-      id: 'wk_02',
-      dimension: '段落轉折',
-      description: '由景入情或由事入理的過渡句稍嫌生硬',
-      occurrence_count: 3,
-      recent_trend: 'steady',
-    },
-    {
-      id: 'wk_03',
-      dimension: '抽象詞過多',
-      description: '情緒表達偏好抽象形容詞，較少落實於具體物象',
-      occurrence_count: 2,
-      recent_trend: 'improving',
-    },
-  ]);
+  try {
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM weaknesses WHERE user_id = ? ORDER BY occurrence_count DESC'
+    )
+      .bind(userId)
+      .all();
+
+    return c.json(results || []);
+  } catch (err) {
+    console.error('[D1 List Weaknesses Error]', err);
+    return c.json([], 500);
+  }
+});
+
+// 3. Get latest analysis report
+analysisRouter.get('/latest', async (c) => {
+  const userId = c.get('userId');
+  if (!c.env.DB) {
+    return c.json(null);
+  }
+
+  try {
+    const row: any = await c.env.DB.prepare(
+      'SELECT * FROM essay_analysis WHERE user_id = ? ORDER BY created_at DESC LIMIT 1'
+    )
+      .bind(userId)
+      .first();
+
+    if (!row) {
+      return c.json(null);
+    }
+
+    return c.json({
+      id: row.id,
+      overallSummary: row.overall_summary,
+      scores: {
+        promptMatch: row.prompt_match_score || 80,
+        intentDepth: row.intent_depth_score || 80,
+        materialRichness: row.material_richness_score || 80,
+        structure: row.structure_score || 80,
+        description: row.description_score || 80,
+        language: row.language_score || 80,
+        emotion: row.emotion_score || 80,
+        conclusion: row.conclusion_score || 80,
+      },
+      strengths: row.strengths_json ? JSON.parse(row.strengths_json) : [],
+      weaknesses: row.weaknesses_json ? JSON.parse(row.weaknesses_json) : [],
+      nextPracticeAdvice: row.next_practice_advice,
+      created_at: row.created_at,
+    });
+  } catch (err) {
+    console.error('[D1 Get Latest Analysis Error]', err);
+    return c.json(null);
+  }
 });

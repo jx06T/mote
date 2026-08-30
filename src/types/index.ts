@@ -40,11 +40,12 @@ export interface Material {
 
 export interface PromptItem {
   id: string;
-  user_id: string;
+  user_id?: string;
   title: string;
   raw_text: string;
   corrected_text: string;
   prompt_type: string;
+  is_official?: number;
   image_r2_path?: string;
   created_at: number;
   updated_at: number;
@@ -107,10 +108,12 @@ export interface WeaknessItem {
 
 export interface HardCharacter {
   id: string;
+  user_id?: string;
   character_text: string;
   zhuyin?: string;
   source_essay_id?: string;
   mastery_level: number;
+  created_at?: number;
 }
 
 export interface ExamSession {

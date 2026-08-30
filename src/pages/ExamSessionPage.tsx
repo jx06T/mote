@@ -8,24 +8,34 @@ import { ExamsAPI } from '../services/api';
 import { EssayAnalysis } from '../types';
 import { Button } from '../components/ui/Button';
 import { ChevronRight } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 export const ExamSessionPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const toast = useToast();
 
-  const promptTitle = searchParams.get('promptTitle') || '走過歲月的窗';
+  const promptTitle = searchParams.get('promptTitle') || '模擬考自訂題目';
   const promptText =
     searchParams.get('promptText') ||
-    '窗是室內與室外的界線，也是心靈凝視外界的途徑。請結合個人生活經驗，書寫你對時間、成長或環境變遷的觀察與體會。';
+    '請依題目要求在實體稿紙上手寫作答，計時結束後拍照上傳並進行 OCR 校對。';
+  const promptId = searchParams.get('promptId') || '';
 
   // 4 Steps: 'timer' -> 'photo_upload' -> 'ocr_review' -> 'analysis'
   const [step, setStep] = useState<'timer' | 'photo_upload' | 'ocr_review' | 'analysis'>('timer');
+  const [examSessionId, setExamSessionId] = useState<string>('');
   const [uploadedPages, setUploadedPages] = useState<Array<{ pageNumber: number; image: string }>>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<EssayAnalysis | null>(null);
 
   // Step 1: Timer Ends / Finish clicked
-  const handleTimerFinish = () => {
+  const handleTimerFinish = async () => {
+    try {
+      const session = await ExamsAPI.start(promptId, 50);
+      setExamSessionId(session.id);
+    } catch {
+      setExamSessionId(`exm_${Date.now()}`);
+    }
     setStep('photo_upload');
   };
 
@@ -39,11 +49,13 @@ export const ExamSessionPage: React.FC = () => {
   const handleConfirmSubmit = async (finalText: string) => {
     setIsAnalyzing(true);
     try {
-      const res = await ExamsAPI.submit('exm_demo', uploadedPages, finalText);
+      const res = await ExamsAPI.submit(examSessionId || 'exm_current', uploadedPages, finalText);
       setAnalysisResult(res.analysis);
       setStep('analysis');
-    } catch (err) {
+      toast.success('模擬考評析完成！');
+    } catch (err: any) {
       console.error(err);
+      toast.error(err.message || '模擬考評析發生錯誤，請重試。');
     } finally {
       setIsAnalyzing(false);
     }

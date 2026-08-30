@@ -297,9 +297,25 @@ ${content}
   // 6. OCR 文字辨識模擬與處理
   async performOCR(imageDataUrl: string): Promise<{ text: string; confidence: number }> {
     return {
-      text: `今天放學時，天色漸漸暗了下來。校門口老槐樹的葉子在初秋的微風中沙沙作響。我看著熟悉的小徑，忽然意識到這段天天走過的路，也許在幾個月後就會變成回憶。我們總是在匆忙中長大，卻常常忘了停下腳步，好好看一眼身邊的風景。`,
+      text: '',
       confidence: 0.94,
     };
+  }
+
+  // Aliases for unified route bindings
+  async matchMaterialsWithPrompt(
+    promptText: string,
+    materials: Array<{ id: string; title: string; story: string; themes: string[] }>
+  ) {
+    return this.rankMaterialsForPrompt(promptText, materials);
+  }
+
+  async evaluateEssay(title: string, content: string, promptText?: string) {
+    return this.analyzeEssay(title, content, promptText);
+  }
+
+  async extractPromptFromImage(imageDataUrl: string) {
+    return this.performOCR(imageDataUrl);
   }
 
   private async callGemini(

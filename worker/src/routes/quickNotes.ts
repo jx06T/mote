@@ -6,90 +6,84 @@ export const quickNotesRouter = new Hono<{ Bindings: Bindings; Variables: Variab
 
 quickNotesRouter.use('*', authMiddleware);
 
-// List quick notes
+// 1. List all quick notes for the authenticated user
 quickNotesRouter.get('/', async (c) => {
   const userId = c.get('userId');
-  if (c.env.DB) {
-    try {
-      const { results } = await c.env.DB.prepare(
-        'SELECT * FROM quick_notes WHERE user_id = ? AND status != "archived" ORDER BY created_at DESC'
-      )
-        .bind(userId)
-        .all();
-      return c.json(results);
-    } catch (err) {
-      console.warn('[D1 List QuickNotes Warning]', err);
-    }
+
+  if (!c.env.DB) {
+    return c.json([]);
   }
 
-  // In-memory fallback
-  return c.json([
-    {
-      id: 'qn_001',
-      user_id: userId,
-      content: '今天放學下起暴雨，老校門邊的槐樹落了一地青黃葉子，大家都躲在屋簷下等雨停。',
-      status: 'active',
-      created_at: Date.now() - 3600000 * 4,
-      updated_at: Date.now() - 3600000 * 4,
-    },
-    {
-      id: 'qn_002',
-      user_id: userId,
-      content: '阿嬤在廚房燉蘿蔔湯，蒸氣把廚房玻璃全蒙上一層霧，她在上面畫了一個笑臉。',
-      status: 'active',
-      created_at: Date.now() - 86400000 * 2,
-      updated_at: Date.now() - 86400000 * 2,
-    },
-  ]);
+  try {
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM quick_notes WHERE user_id = ? ORDER BY created_at DESC'
+    )
+      .bind(userId)
+      .all();
+
+    return c.json(results || []);
+  } catch (err) {
+    console.error('[D1 List QuickNotes Error]', err);
+    return c.json([], 500);
+  }
 });
 
-// Create quick note
+// 2. Create a new quick note
 quickNotesRouter.post('/', async (c) => {
   const userId = c.get('userId');
-  const body = await c.req.json<{ content: string }>();
-  if (!body.content || !body.content.trim()) {
-    return c.json({ error: '內容不能為空' }, 400);
+  const body = await c.req.json();
+  const content = (body.content || '').trim();
+
+  if (!content) {
+    return c.json({ error: '筆記內容不可為空' }, 400);
   }
 
-  const id = 'qn_' + Date.now();
+  const id = `qn_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   const now = Date.now();
 
-  if (c.env.DB) {
-    try {
-      await c.env.DB.prepare(
-        'INSERT INTO quick_notes (id, user_id, content, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
-      )
-        .bind(id, userId, body.content.trim(), 'active', now, now)
-        .run();
-    } catch (err) {
-      console.warn('[D1 Create QuickNote Warning]', err);
-    }
+  if (!c.env.DB) {
+    return c.json({ error: 'Database binding not configured' }, 500);
   }
 
-  return c.json({
-    id,
-    user_id: userId,
-    content: body.content.trim(),
-    status: 'active',
-    created_at: now,
-    updated_at: now,
-  });
+  try {
+    await c.env.DB.prepare(`
+      INSERT INTO quick_notes (id, user_id, content, status, created_at, updated_at)
+      VALUES (?, ?, ?, 'pending', ?, ?)
+    `)
+      .bind(id, userId, content, now, now)
+      .run();
+
+    return c.json({
+      id,
+      user_id: userId,
+      content,
+      status: 'pending',
+      created_at: now,
+      updated_at: now,
+    });
+  } catch (err) {
+    console.error('[D1 Create QuickNote Error]', err);
+    return c.json({ error: 'Failed to create quick note' }, 500);
+  }
 });
 
-// Delete or archive note
+// 3. Delete a quick note
 quickNotesRouter.delete('/:id', async (c) => {
+  const id = c.req.param('id');
   const userId = c.get('userId');
-  const noteId = c.req.param('id');
 
-  if (c.env.DB) {
-    try {
-      await c.env.DB.prepare('DELETE FROM quick_notes WHERE id = ? AND user_id = ?')
-        .bind(noteId, userId)
-        .run();
-    } catch (err) {
-      console.warn('[D1 Delete QuickNote Warning]', err);
-    }
+  if (!c.env.DB) {
+    return c.json({ error: 'Database binding not configured' }, 500);
   }
 
-  return c.json({ success: true, message: '已刪除記錄' });
+  try {
+    await c.env.DB.prepare('DELETE FROM quick_notes WHERE id = ? AND user_id = ?')
+      .bind(id, userId)
+      .run();
+
+    return c.json({ success: true });
+  } catch (err) {
+    console.error('[D1 Delete QuickNote Error]', err);
+    return c.json({ error: 'Failed to delete quick note' }, 500);
+  }
 });
