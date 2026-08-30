@@ -64,6 +64,7 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
   // Operation log state
   const [operations, setOperations] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const prevTextRef = useRef<string>(initialContent || '');
 
   // Hard character marking state
   const [hardCharModal, setHardCharModal] = useState(false);
@@ -121,8 +122,11 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
           if (data.operations && data.operations.length > 0) {
             setOperations(data.operations);
           }
-          if (editor && editor.isEmpty && data.essay?.current_content) {
-            editor.commands.setContent(formatToHtml(data.essay.current_content));
+          if (data.essay?.current_content) {
+            prevTextRef.current = data.essay.current_content;
+            if (editor && editor.isEmpty) {
+              editor.commands.setContent(formatToHtml(data.essay.current_content));
+            }
           }
         }
       } catch (err) {
@@ -132,17 +136,89 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
     loadEssayDetails();
   }, [currentEssayId, editor]);
 
-  // Debounced Autosave
+  // Helper diff algorithm to extract changes
+  const getDiff = (oldStr: string, newStr: string) => {
+    let start = 0;
+    while (start < oldStr.length && start < newStr.length && oldStr[start] === newStr[start]) {
+      start++;
+    }
+    let oldEnd = oldStr.length - 1;
+    let newEnd = newStr.length - 1;
+    while (oldEnd >= start && newEnd >= start && oldStr[oldEnd] === newStr[newEnd]) {
+      oldEnd--;
+      newEnd--;
+    }
+    const removed = oldStr.slice(start, oldEnd + 1);
+    const added = newStr.slice(start, newEnd + 1);
+    return { start, removed, added };
+  };
+
+  // Debounced Autosave and Operation Tracking
   useEffect(() => {
     if (!editor || saveStatus !== 'saving') return;
     const timer = setTimeout(async () => {
-      const content = editor.getText();
+      const currentText = editor.getText();
+      const oldText = prevTextRef.current;
+      let updatedOps = operations;
+
+      if (currentText !== oldText) {
+        const diff = getDiff(oldText, currentText);
+        const now = Date.now();
+
+        if (diff.removed.trim() && diff.added.trim()) {
+          // Replace operation
+          const newOp = {
+            id: `op_${now}_${Math.random().toString(36).slice(2, 6)}`,
+            essay_id: currentEssayId || '',
+            operation_type: 'REPLACE',
+            position: diff.start,
+            length: diff.added.length,
+            old_content: diff.removed.trim(),
+            new_content: diff.added.trim(),
+            source: 'user',
+            created_at: now,
+          };
+          updatedOps = [newOp, ...operations];
+          setOperations(updatedOps);
+        } else if (diff.removed.trim() && (diff.removed.trim().length >= 2 || diff.removed.includes('\n'))) {
+          // Significant Delete operation
+          const newOp = {
+            id: `op_${now}_${Math.random().toString(36).slice(2, 6)}`,
+            essay_id: currentEssayId || '',
+            operation_type: 'DELETE',
+            position: diff.start,
+            length: diff.removed.length,
+            old_content: diff.removed.trim(),
+            source: 'user',
+            created_at: now,
+          };
+          updatedOps = [newOp, ...operations];
+          setOperations(updatedOps);
+        } else if (diff.added.trim() && (diff.added.trim().length >= 2 || diff.added.includes('\n'))) {
+          // Insert operation
+          const newOp = {
+            id: `op_${now}_${Math.random().toString(36).slice(2, 6)}`,
+            essay_id: currentEssayId || '',
+            operation_type: 'INSERT',
+            position: diff.start,
+            length: diff.added.length,
+            new_content: diff.added.trim(),
+            source: 'user',
+            created_at: now,
+          };
+          updatedOps = [newOp, ...operations];
+          setOperations(updatedOps);
+        }
+
+        prevTextRef.current = currentText;
+      }
+
       try {
         const saved = await EssaysAPI.save({
           id: currentEssayId,
           title,
-          content,
-          operations,
+          content: currentText,
+          operations: updatedOps,
         });
         if (saved?.id && !currentEssayId) {
           setCurrentEssayId(saved.id);
@@ -169,6 +245,27 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
       return;
     }
 
+    const actionLabels: Record<string, string> = {
+      metaphor: '比喻',
+      imitation: '仿寫',
+      expand: '擴寫',
+      concise: '精簡',
+      emotion: '加情緒',
+      scene: '加畫面',
+    };
+
+    // Log AI Suggestion intent
+    const sugOp = {
+      id: `op_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      essay_id: currentEssayId || '',
+      operation_type: 'AI_SUGGESTION',
+      old_content: selectedText,
+      new_content: `思考「${actionLabels[action] || action}」修辭引導`,
+      source: 'ai',
+      created_at: Date.now(),
+    };
+    setOperations((prev) => [sugOp, ...prev]);
+
     setIsAssisting(true);
     try {
       const res = await EssaysAPI.assist(selectedText, action, editor?.getText());
@@ -192,14 +289,18 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
       .insertContentAt(selectedRange.from, newText)
       .run();
 
+    const now = Date.now();
     const newOp = {
-      id: 'op_' + Date.now(),
+      id: `op_${now}_${Math.random().toString(36).slice(2, 6)}`,
+      essay_id: currentEssayId || '',
       operation_type: 'AI_ACCEPT',
       old_content: selectedText,
       new_content: newText,
-      created_at: Date.now(),
+      source: 'ai',
+      created_at: now,
     };
     setOperations((prev) => [newOp, ...prev]);
+    prevTextRef.current = editor.getText();
     setSaveStatus('saving');
   };
 

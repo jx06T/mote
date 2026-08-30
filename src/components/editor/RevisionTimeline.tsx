@@ -1,16 +1,16 @@
 import React from 'react';
 import { EssayOperation } from '../../types';
-import { Clock, Plus, Trash2, Sparkles, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Sparkles, RefreshCw, Feather, Edit3 } from 'lucide-react';
 
 interface RevisionTimelineProps {
   operations: EssayOperation[];
 }
 
 export const RevisionTimeline: React.FC<RevisionTimelineProps> = ({ operations }) => {
-  if (operations.length === 0) {
+  if (!operations || operations.length === 0) {
     return (
       <div className="py-8 text-center text-text-muted text-xs">
-        尚未有詳細操作歷程紀錄。
+        尚未有詳細操作歷程紀錄。當你在編輯器中進行輸入、刪除、替換或採用 AI 建議時，系統會自動留存思考歷程。
       </div>
     );
   }
@@ -23,19 +23,25 @@ export const RevisionTimeline: React.FC<RevisionTimelineProps> = ({ operations }
         return <Trash2 className="w-3 h-3 text-status-danger" />;
       case 'AI_ACCEPT':
         return <Sparkles className="w-3 h-3 text-primary" />;
-      default:
+      case 'AI_SUGGESTION':
+        return <Feather className="w-3 h-3 text-accent-warm" />;
+      case 'REPLACE':
         return <RefreshCw className="w-3 h-3 text-status-info" />;
+      default:
+        return <Edit3 className="w-3 h-3 text-text-muted" />;
     }
   };
 
   const getOpLabel = (op: EssayOperation) => {
     switch (op.operation_type) {
       case 'INSERT':
-        return `新增了文字 (${op.new_content?.slice(0, 15)}...)`;
+        return `新增了文字 (${op.new_content?.slice(0, 18) || ''}...)`;
       case 'DELETE':
-        return `刪除了一段文字 (${op.old_content?.slice(0, 15)}...)`;
+        return `刪除了一段文字 (${op.old_content?.slice(0, 18) || ''}...)`;
       case 'AI_ACCEPT':
         return `採用了 AI 修飾建議`;
+      case 'AI_SUGGESTION':
+        return op.new_content || `觸發了 AI 修辭思考引導`;
       case 'REPLACE':
         return `替換了部分文字`;
       default:
@@ -65,7 +71,7 @@ export const RevisionTimeline: React.FC<RevisionTimelineProps> = ({ operations }
               </div>
 
               {/* Show text diff snippet if available */}
-              {op.operation_type === 'AI_ACCEPT' && (op.old_content || op.new_content) && (
+              {(op.operation_type === 'AI_ACCEPT' || op.operation_type === 'REPLACE') && (op.old_content || op.new_content) && (
                 <div className="text-[11px] bg-surface-elevated border border-border-subtle rounded-lg p-2 space-y-1">
                   {op.old_content && (
                     <div className="text-text-muted line-through">
@@ -82,9 +88,23 @@ export const RevisionTimeline: React.FC<RevisionTimelineProps> = ({ operations }
                 </div>
               )}
 
+              {op.operation_type === 'INSERT' && op.new_content && (
+                <div className="text-[11px] bg-surface-elevated border border-border-subtle rounded-lg p-2 text-text-soft">
+                  <span className="font-semibold text-status-success mr-1">+</span>
+                  {op.new_content}
+                </div>
+              )}
+
               {op.operation_type === 'DELETE' && op.old_content && (
                 <div className="text-[11px] bg-surface-elevated border border-border-subtle rounded-lg p-2 text-status-danger/90">
                   <span className="font-semibold mr-1">已刪除：</span>
+                  {op.old_content}
+                </div>
+              )}
+
+              {op.operation_type === 'AI_SUGGESTION' && op.old_content && (
+                <div className="text-[11px] bg-surface-elevated border border-border-subtle rounded-lg p-2 text-text-muted">
+                  <span className="font-semibold text-text-soft mr-1">針對選句：</span>
                   {op.old_content}
                 </div>
               )}
