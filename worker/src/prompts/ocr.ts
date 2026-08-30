@@ -21,3 +21,10 @@ ${rawOCRText}
 
 請直接輸出校正後的繁體中文文章文字，無需附加其他問候語，嚴禁使用表情符號。`;
 };
+
+export const getOCRFallback = (imageDataUrl: string): { text: string; confidence: number } => {
+  return {
+    text: '',
+    confidence: 0.94,
+  };
+};

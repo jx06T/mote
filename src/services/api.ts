@@ -9,6 +9,7 @@ import {
   ExamSession,
 } from '../types';
 import { storage, STORAGE_KEYS } from './storage';
+import { STARTER_PROMPTS, INTERVIEW_FALLBACK_QUESTIONS } from '../config/prompts';
 
 const API_BASE = '/api';
 
@@ -290,9 +291,10 @@ export const MaterialsAPI = {
         };
       }
       const count = history.filter((h) => h.role === 'user').length;
-      if (count === 1) return { nextQuestion: '當時身邊還有誰在場？他們當下的表情或動作是什麼？' };
-      if (count === 2) return { nextQuestion: '在那一瞬間，有什麼特別的聲音、氣味或眼前映入的第一個畫面讓你印象最深？' };
-      return { nextQuestion: '這件事發生之後，你的心情有了什麼變化？現在回想起來，它帶給你什麼啟發或想法？' };
+      const fallbackIdx = Math.min(count, INTERVIEW_FALLBACK_QUESTIONS.length - 1);
+      return {
+        nextQuestion: INTERVIEW_FALLBACK_QUESTIONS[fallbackIdx] || INTERVIEW_FALLBACK_QUESTIONS[0],
+      };
     }
   },
 
@@ -330,39 +332,6 @@ export const MaterialsAPI = {
 };
 
 // 3. Prompts API
-const STARTER_PROMPTS: PromptItem[] = [
-  {
-    id: 'pr_001',
-    title: '當我轉身看見那道光',
-    raw_text: '在生命的行進中，我們常埋頭前行，忽略了身後的風景或身旁默默注視的人。請結合生活經驗與體會，寫一篇文章，描述某個轉身看見光芒的片刻與體悟。',
-    corrected_text: '在生命的行進中，我們常埋頭前行，忽略了身後的風景或身旁默默注視的人。請結合生活經驗與體會，寫一篇文章，描述某個轉身看見光芒的片刻與體悟。',
-    prompt_type: '記敘抒情',
-    is_official: 1,
-    created_at: Date.now(),
-    updated_at: Date.now(),
-  },
-  {
-    id: 'pr_002',
-    title: '走過歲月的窗',
-    raw_text: '窗是室內與室外的界線，也是心靈凝視外界的途徑。透過窗戶，我們看見季節更替、城市變遷與人情冷暖。請以「走過歲月的窗」為題，書寫你的觀察與思考。',
-    corrected_text: '窗是室內與室外的界線，也是心靈凝視外界的途徑。透過窗戶，我們看見季節更替、城市變遷與人情冷暖。請以「走過歲月的窗」為題，書寫你的觀察與思考。',
-    prompt_type: '記敘抒情',
-    is_official: 1,
-    created_at: Date.now(),
-    updated_at: Date.now(),
-  },
-  {
-    id: 'pr_003',
-    title: '那一次，我選擇了留白',
-    raw_text: '在凡事講求效率與填滿的時代，有時適當的放手、沉默或等待，反而能讓事物展現真正的深度。請結合自身經歷，談談你對「留白」的理解與選擇。',
-    corrected_text: '在凡事講求效率與填滿的時代，有時適當的放手、沉默或等待，反而能讓事物展現真正的深度。請結合自身經歷，談談你對「留白」的理解與選擇。',
-    prompt_type: '哲理思考',
-    is_official: 1,
-    created_at: Date.now(),
-    updated_at: Date.now(),
-  },
-];
-
 export const PromptsAPI = {
   async list(): Promise<PromptItem[]> {
     if (!isAuthenticated()) {

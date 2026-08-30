@@ -1,6 +1,12 @@
+import { MaterialCardData } from '../types';
+
 /**
- * 素材深入訪談相關提示詞 (Material Deepening Interview Prompts)
+ * 素材深入訪談相關提示詞與降級配置 (Material Deepening Interview Prompts)
  */
+
+export const DEFAULT_INTERVIEW_OPENING_PROMPT = (noteContent: string): string => {
+  return `你記下了：「${noteContent}」。這是一段很有潛力的生活片段。當時除了你之外，身邊還有誰在場？或有什麼特別的動作？`;
+};
 
 export const getInterviewQuestionSystemPrompt = (noteContent: string): string => {
   return `你是一位溫暖、善於引導的高中作文指導老師。
@@ -40,8 +46,40 @@ export const getMaterialSummarySystemPrompt = (noteContent: string): string => {
 };
 
 export const INTERVIEW_FALLBACK_QUESTIONS = [
-  '當時除了你之外，身邊還有誰在場？他們當下的表情或動作是什麼？',
+  '當時身邊還有誰在場？他們當下的表情或動作是什麼？',
   '在那一瞬間，有什麼特別的聲音、氣味或眼前映入的第一個畫面讓你印象最深？',
   '這件事發生之後，你的心情有了什麼變化？現在回想起來，它帶給你什麼啟發或想法？',
   '這段經歷非常生動。還有沒有哪一句話或微小細節是你特別想記下來的？',
 ];
+
+/**
+ * 無網路或無 API Key 時的結構化素材卡離線提煉（忠實反映用戶回答，絕不編造假內容）
+ */
+export const getMaterialSummaryFallback = (
+  noteContent: string,
+  history: Array<{ role: string; content: string }>
+): MaterialCardData => {
+  const userAnswers = history
+    .filter((m) => m.role === 'user')
+    .map((m) => m.content.trim())
+    .filter(Boolean);
+
+  const title = noteContent.length > 15 ? `${noteContent.slice(0, 15)}...` : (noteContent || '生活片段素材');
+  const combinedStory = userAnswers.length > 0
+    ? `${noteContent}。${userAnswers.join('；')}`
+    : noteContent;
+
+  return {
+    title,
+    story: combinedStory,
+    people: ['我'],
+    time: '',
+    location: '',
+    scene: '',
+    dialogue: '',
+    emotion: '',
+    reflection: '',
+    themes: ['生活記錄'],
+    tags: ['隨手筆記'],
+  };
+};

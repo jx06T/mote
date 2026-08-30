@@ -1,21 +1,22 @@
 import { Bindings, MaterialCardData, EssayAnalysisData } from '../../types';
 import {
+  AI_CANDIDATE_MODELS,
+  AI_TASK_CONFIGS,
   getInterviewQuestionSystemPrompt,
   getMaterialSummarySystemPrompt,
   INTERVIEW_FALLBACK_QUESTIONS,
+  getMaterialSummaryFallback,
   getReverseSearchSystemPrompt,
+  getReverseSearchFallbackMatches,
   getWritingAssistancePrompt,
+  getWritingAssistFallback,
   WritingAssistAction,
   getEssayAnalysisPrompt,
+  getEssayAnalysisFallback,
   getPromptExtractionPrompt,
   getOCRCorrectionPrompt,
+  getOCRFallback,
 } from '../../prompts';
-
-const CANDIDATE_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-];
 
 export class AIService {
   private apiKey: string;
@@ -33,7 +34,12 @@ export class AIService {
 
     if (this.apiKey) {
       try {
-        const response = await this.callGemini(systemPrompt, history);
+        const response = await this.callGemini(
+          systemPrompt,
+          history,
+          false,
+          AI_TASK_CONFIGS.interview_question?.temperature ?? 0.3
+        );
         if (response) return response.trim();
       } catch (err) {
         console.warn('[AI Interview Call Fallback]', err);
@@ -55,7 +61,12 @@ export class AIService {
 
     if (this.apiKey) {
       try {
-        const text = await this.callGemini(systemPrompt, history, true);
+        const text = await this.callGemini(
+          systemPrompt,
+          history,
+          true,
+          AI_TASK_CONFIGS.material_summary?.temperature ?? 0.2
+        );
         if (text) {
           const parsed = JSON.parse(this.cleanJson(text));
           return parsed;
@@ -65,30 +76,8 @@ export class AIService {
       }
     }
 
-    // Heuristic Fallback - Strictly based on student input, no fabricated filler
-    const userAnswers = history
-      .filter((m) => m.role === 'user')
-      .map((m) => m.content.trim())
-      .filter(Boolean);
-
-    const title = noteContent.length > 15 ? `${noteContent.slice(0, 15)}...` : (noteContent || '生活片段素材');
-    const combinedStory = userAnswers.length > 0
-      ? `${noteContent}。${userAnswers.join('；')}`
-      : noteContent;
-
-    return {
-      title,
-      story: combinedStory,
-      people: ['我'],
-      time: '',
-      location: '',
-      scene: '',
-      dialogue: '',
-      emotion: '',
-      reflection: '',
-      themes: ['生活記錄'],
-      tags: ['隨手筆記'],
-    };
+    // Heuristic Fallback - Isolated from centralized prompt module
+    return getMaterialSummaryFallback(noteContent, history);
   }
 
   // 3. 題目反向素材推薦
@@ -104,7 +93,12 @@ export class AIService {
           promptText,
           JSON.stringify(materials)
         );
-        const res = await this.callGemini(systemPrompt, [], true);
+        const res = await this.callGemini(
+          systemPrompt,
+          [],
+          true,
+          AI_TASK_CONFIGS.reverse_search?.temperature ?? 0.2
+        );
         if (res) {
           const parsed = JSON.parse(this.cleanJson(res));
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -116,36 +110,8 @@ export class AIService {
       }
     }
 
-    // Dynamic keyword matching fallback
-    const keywords = promptText
-      .split(/[\s，。！？、；：「」『』\n\r]+/)
-      .filter((k) => k.length > 1);
-
-    return materials.map((mat, idx) => {
-      const matchCount = keywords.filter(
-        (k) =>
-          mat.title.includes(k) ||
-          mat.story.includes(k) ||
-          (mat.themes && mat.themes.some((t) => t.includes(k)))
-      ).length;
-
-      let rank: 'high' | 'medium' | 'low' = 'low';
-      let reason = `素材「${mat.title}」記錄了真實的生活經驗，可作為作文情境的鋪陳或補充細節。`;
-
-      if (matchCount >= 2 || (keywords.length <= 2 && matchCount >= 1)) {
-        rank = 'high';
-        reason = `素材「${mat.title}」與題目的核心意涵高度呼應，適合作為篇章的核心段落重點展開。`;
-      } else if (matchCount === 1 || idx === 0) {
-        rank = 'medium';
-        reason = `素材「${mat.title}」具有延伸發揮的潛力，可從轉折或對比視角切入，增添文章層次。`;
-      }
-
-      return {
-        materialId: mat.id,
-        rank,
-        reason,
-      };
-    });
+    // Dynamic keyword matching fallback - Isolated from centralized prompt module
+    return getReverseSearchFallbackMatches(promptText, materials);
   }
 
   // 4. AI 寫作輔助 (比喻, 仿寫, 擴寫, 精簡, 增加情緒, 增加畫面)
@@ -158,7 +124,12 @@ export class AIService {
 
     if (this.apiKey) {
       try {
-        const res = await this.callGemini(prompt, [], true);
+        const res = await this.callGemini(
+          prompt,
+          [],
+          true,
+          AI_TASK_CONFIGS.writing_assist?.temperature ?? 0.4
+        );
         if (res) {
           const parsed = JSON.parse(this.cleanJson(res));
           return {
@@ -172,45 +143,8 @@ export class AIService {
       }
     }
 
-    // Heuristic fallbacks
-    switch (action) {
-      case 'metaphor':
-        return {
-          original: sentence,
-          suggestion: `${sentence}，宛如一葉在微風中輕輕打轉的秋槭，無聲地沉落於心底澄澈的湖面。`,
-          explanation: '以落葉入水的比喻，將抽象的情緒具象化為緩慢而深邃的畫面。',
-        };
-      case 'expand':
-        return {
-          original: sentence,
-          suggestion: `每當暮色四合，${sentence}。那細微的聲響伴隨空氣中漸涼的濕氣，久久未曾散去。`,
-          explanation: '補充時間背景與感官觸覺，增加臨場氛圍。',
-        };
-      case 'concise':
-        return {
-          original: sentence,
-          suggestion: sentence.replace(/的|得很|非常|真的/g, '').slice(0, Math.max(8, sentence.length - 4)),
-          explanation: '刪除贅字與虛詞，使節奏更為凝鍊有力。',
-        };
-      case 'scene':
-        return {
-          original: sentence,
-          suggestion: `${sentence}，夕陽斜斜切過窗櫺，在斑駁的木桌上拉出長長的金色光軌。`,
-          explanation: '引入光影與具體物象，加強空間深度。',
-        };
-      case 'emotion':
-        return {
-          original: sentence,
-          suggestion: `胸口彷彿被某種溫熱而酸澀的情緒填滿，${sentence}。`,
-          explanation: '著墨生理反應與心理投射，增添情感張力。',
-        };
-      default:
-        return {
-          original: sentence,
-          suggestion: `在時光的折射下，${sentence}`,
-          explanation: '調整起首語感，使文句更具韻味。',
-        };
-    }
+    // Heuristic fallbacks - Isolated from centralized prompt module
+    return getWritingAssistFallback(sentence, action);
   }
 
   // 5. 作文多面向結構化分析
@@ -219,7 +153,12 @@ export class AIService {
 
     if (this.apiKey) {
       try {
-        const res = await this.callGemini(prompt, [], true);
+        const res = await this.callGemini(
+          prompt,
+          [],
+          true,
+          AI_TASK_CONFIGS.essay_analysis?.temperature ?? 0.2
+        );
         if (res) {
           return JSON.parse(this.cleanJson(res));
         }
@@ -228,47 +167,13 @@ export class AIService {
       }
     }
 
-    // Heuristic Fallback
-    const length = content.length;
-    return {
-      overallSummary: `本文整體立意清晰，文筆流暢自然。作者善於捕捉生活中的真切片刻，文字具備溫度與真誠感。若能在篇章結構的轉折處加強鋪墊，並在末段讓立意進一步昇華，整體張力將更為飽滿。`,
-      scores: {
-        promptMatch: Math.min(92, 75 + Math.floor(length / 50)),
-        intentDepth: 82,
-        materialRichness: 86,
-        structure: 80,
-        description: 85,
-        language: 84,
-        emotion: 88,
-        conclusion: 78,
-      },
-      strengths: [
-        '生活素材真實生動，避開了陳腔濫調與虛構情節。',
-        '感官描寫到位，對於光線與周遭氛圍的刻畫具備畫面感。',
-        '文字真摯，能傳遞出青年時期的探索與細膩感受。',
-      ],
-      weaknesses: [
-        {
-          dimension: '結尾說理',
-          issue: '篇末結論略顯急促，有直接點題說教的傾向。',
-          suggestion: '建議以餘音繞樑的畫面或未完之意作結，讓讀者自行體會深刻立意。',
-        },
-        {
-          dimension: '段落轉折',
-          issue: '起承轉合中，「轉」的力度可以再深化，突出心境的對比。',
-          suggestion: '在轉折段落放慢敘事步調，深入剖析困惑或頓悟的關鍵瞬間。',
-        },
-      ],
-      nextPracticeAdvice: '下一次練習請特別著重於「結尾的以景結情」，嘗試用一段具體的畫面作為全文的回響。',
-    };
+    // Heuristic Fallback - Isolated from centralized prompt module
+    return getEssayAnalysisFallback(title, content, promptText);
   }
 
   // 6. OCR 文字辨識處理
   async performOCR(imageDataUrl: string): Promise<{ text: string; confidence: number }> {
-    return {
-      text: '',
-      confidence: 0.94,
-    };
+    return getOCRFallback(imageDataUrl);
   }
 
   // Aliases for unified route bindings
@@ -290,7 +195,8 @@ export class AIService {
   private async callGemini(
     systemPrompt: string,
     history: Array<{ role: string; content: string }>,
-    jsonMode = false
+    jsonMode = false,
+    temperature = 0.3
   ): Promise<string | null> {
     if (!this.apiKey) return null;
 
@@ -325,12 +231,12 @@ export class AIService {
       }
     }
 
-    for (const model of CANDIDATE_MODELS) {
+    for (const model of AI_CANDIDATE_MODELS) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
       const payload: any = {
         contents,
         generationConfig: {
-          temperature: 0.3,
+          temperature,
         },
       };
 

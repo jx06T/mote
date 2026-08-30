@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Send, CheckCircle2, ArrowRight, Sparkles, MessageCircle, X } from 'lucide-react';
+import { DEFAULT_INTERVIEW_OPENING, INTERVIEW_FALLBACK_QUESTIONS } from '../../config/prompts';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -26,7 +27,7 @@ export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: `你記下了：「${noteContent}」。這是一段很有潛力的生活片段。當時除了你之外，身邊還有誰在場？或有什麼特別的動作？`,
+      content: DEFAULT_INTERVIEW_OPENING(noteContent),
     },
   ]);
   const [inputText, setInputText] = useState('');
@@ -59,7 +60,7 @@ export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
     } catch {
       setMessages([
         ...nextMessages,
-        { role: 'assistant', content: '在那一瞬間，有什麼特別的聲音、氣味或眼前映入的第一個畫面讓你印象最深？' },
+        { role: 'assistant', content: INTERVIEW_FALLBACK_QUESTIONS[1] || INTERVIEW_FALLBACK_QUESTIONS[0] },
       ]);
     } finally {
       setIsLoading(false);
