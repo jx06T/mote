@@ -20,4 +20,20 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-tiptap': [
+            '@tiptap/react',
+            '@tiptap/starter-kit',
+            '@tiptap/extension-character-count',
+            '@tiptap/extension-placeholder',
+          ],
+          'vendor-icons': ['lucide-react'],
+        },
+      },
+    },
+  },
 });

@@ -170,7 +170,7 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
 
         <div className="flex items-center space-x-3 text-xs shrink-0">
           <span className="text-text-muted flex items-center">
-            {saveStatus === 'saving' ? '↻ 儲存中...' : '✓ 已儲存'}
+            {saveStatus === 'saving' ? '儲存中...' : '已儲存'}
           </span>
           <span className="text-text-soft font-mono px-2 py-0.5 bg-neutral-100 rounded-md">
             {wordCount} 字
