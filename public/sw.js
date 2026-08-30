@@ -1,4 +1,4 @@
-const VERSION = 'v1.0.1';
+const VERSION = 'v1.0.2';
 const SHELL_CACHE = `mote-shell-${VERSION}`;
 const API_CACHE = `mote-api-${VERSION}`;
 const IMAGE_CACHE = `mote-images-${VERSION}`;
@@ -54,6 +54,9 @@ self.addEventListener('fetch', (event) => {
     url.searchParams.has('t') ||
     url.searchParams.has('import')
   ) {
+    return;
+  // Bypass OAuth and Auth routes completely from Service Worker interception
+  if (url.pathname.startsWith('/api/auth/')) {
     return;
   }
 

@@ -41,7 +41,20 @@ function getOAuthInfo(c: AuthContext) {
   let frontendOrigin = c.env.FRONTEND_URL || '';
   if (!frontendOrigin) {
     const xfHost = c.req.header('x-forwarded-host') || c.req.header('host');
-    const xfProto = c.req.header('x-forwarded-proto') || 'http';
+    let xfProto = c.req.header('x-forwarded-proto');
+    if (!xfProto) {
+      const cfVisitor = c.req.header('cf-visitor');
+      if (cfVisitor) {
+        try {
+          const parsed = JSON.parse(cfVisitor);
+          if (parsed.scheme) xfProto = parsed.scheme;
+        } catch {}
+      }
+    }
+    if (!xfProto) {
+      xfProto = (xfHost && (xfHost.includes('localhost') || xfHost.includes('127.0.0.1'))) ? 'http' : 'https';
+    }
+
     if (xfHost && !xfHost.includes('8787')) {
       frontendOrigin = `${xfProto}://${xfHost}`;
     } else {
@@ -58,11 +71,13 @@ function getOAuthInfo(c: AuthContext) {
 // 2. 發起 Google OAuth 重新導向
 authRouter.get('/google', async (c) => {
   const clientId = c.env.GOOGLE_CLIENT_ID;
+  const { frontendOrigin, redirectUri } = getOAuthInfo(c);
+
   if (!clientId) {
-    return c.json({ error: 'GOOGLE_CLIENT_ID not configured' }, 500);
+    console.error('[Google OAuth] Missing GOOGLE_CLIENT_ID');
+    return c.redirect(`${frontendOrigin}/login?error=oauth_config_missing`);
   }
 
-  const { redirectUri } = getOAuthInfo(c);
   const scope = encodeURIComponent('openid email profile');
   const state = Math.random().toString(36).substring(2);
 
@@ -76,11 +91,22 @@ authRouter.get('/google', async (c) => {
 // 3. Google OAuth 回呼處理函式
 const handleGoogleCallback = async (c: AuthContext) => {
   const code = c.req.query('code');
+  const errorParam = c.req.query('error');
   const clientId = c.env.GOOGLE_CLIENT_ID;
   const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
   const { frontendOrigin, redirectUri } = getOAuthInfo(c);
 
-  if (!code || !clientId || !clientSecret) {
+  if (errorParam) {
+    console.error('[Google OAuth Callback Error] Google returned error:', errorParam);
+    return c.redirect(`${frontendOrigin}/login?error=google_denied`);
+  }
+
+  if (!code) {
+    return c.redirect(`${frontendOrigin}/login?error=code_missing`);
+  }
+
+  if (!clientId || !clientSecret) {
+    console.error('[Google OAuth Callback Error] Missing client ID or secret');
     return c.redirect(`${frontendOrigin}/login?error=oauth_config_missing`);
   }
 
@@ -113,6 +139,7 @@ const handleGoogleCallback = async (c: AuthContext) => {
     });
 
     if (!userRes.ok) {
+      console.error('[Google OAuth UserInfo Error]', userRes.status);
       return c.redirect(`${frontendOrigin}/login?error=userinfo_failed`);
     }
 
@@ -125,55 +152,60 @@ const handleGoogleCallback = async (c: AuthContext) => {
     // C. 寫入或更新 D1 users 表
     const now = Date.now();
     let userId = `usr_${googleId.slice(0, 12)}`;
+    const sessionId = 'ses_' + Math.random().toString(36).slice(2) + now;
+    const sessionToken = 'tok_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 天
 
     if (c.env.DB) {
-      const existingUser = await c.env.DB.prepare(
-        'SELECT id FROM users WHERE google_id = ?'
-      )
-        .bind(googleId)
-        .first<{ id: string }>();
+      try {
+        const existingUser = await c.env.DB.prepare(
+          'SELECT id FROM users WHERE google_id = ?'
+        )
+          .bind(googleId)
+          .first<{ id: string }>();
 
-      if (existingUser) {
-        userId = existingUser.id;
+        if (existingUser) {
+          userId = existingUser.id;
+          await c.env.DB.prepare(
+            'UPDATE users SET name = ?, avatar_url = ?, updated_at = ? WHERE id = ?'
+          )
+            .bind(name, avatarUrl, now, userId)
+            .run();
+        } else {
+          await c.env.DB.prepare(
+            `INSERT INTO users (id, google_id, email, name, avatar_url, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`
+          )
+            .bind(userId, googleId, email, name, avatarUrl, now, now)
+            .run();
+        }
+
         await c.env.DB.prepare(
-          'UPDATE users SET name = ?, avatar_url = ?, updated_at = ? WHERE id = ?'
+          `INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at)
+           VALUES (?, ?, ?, ?, ?)`
         )
-          .bind(name, avatarUrl, now, userId)
+          .bind(sessionId, userId, sessionToken, expiresAt, now)
           .run();
-      } else {
-        await c.env.DB.prepare(
-          `INSERT INTO users (id, google_id, email, name, avatar_url, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`
-        )
-          .bind(userId, googleId, email, name, avatarUrl, now, now)
-          .run();
+      } catch (dbErr) {
+        console.error('[Google OAuth DB Write Error]', dbErr);
+        return c.redirect(`${frontendOrigin}/login?error=db_error`);
       }
-
-      // D. 建立 Session
-      const sessionId = 'ses_' + Math.random().toString(36).slice(2) + now;
-      const sessionToken = 'tok_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 天
-
-      await c.env.DB.prepare(
-        `INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at)
-         VALUES (?, ?, ?, ?, ?)`
-      )
-        .bind(sessionId, userId, sessionToken, expiresAt, now)
-        .run();
-
-      // 設定 Cookie 並跳轉回首頁
-      c.header('Set-Cookie', `mote_session=${sessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`);
-      const redirectParams = new URLSearchParams({
-        auth_token: sessionToken,
-        user_id: userId,
-        user_name: name,
-        user_email: email,
-        avatar_url: avatarUrl,
-      });
-      return c.redirect(`${frontendOrigin}/?${redirectParams.toString()}`);
     }
 
-    return c.redirect(`${frontendOrigin}/?login=success`);
+    // 設定 Cookie 並跳轉回首頁
+    const isSecure = redirectUri.startsWith('https://');
+    c.header(
+      'Set-Cookie',
+      `mote_session=${sessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${isSecure ? '; Secure' : ''}`
+    );
+    const redirectParams = new URLSearchParams({
+      auth_token: sessionToken,
+      user_id: userId,
+      user_name: name,
+      user_email: email,
+      avatar_url: avatarUrl,
+    });
+    return c.redirect(`${frontendOrigin}/?${redirectParams.toString()}`);
   } catch (err) {
     console.error('[Google OAuth Callback Error]', err);
     return c.redirect(`${frontendOrigin}/login?error=oauth_internal_error`);

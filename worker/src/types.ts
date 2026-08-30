@@ -4,6 +4,7 @@ export interface Bindings {
   DB: D1Database;
   STORAGE: R2Bucket;
   KV: KVNamespace;
+  ASSETS?: Fetcher;
 
   // Secrets
   GEMINI_API_KEY?: string;

@@ -37,4 +37,12 @@ app.route('/api/exams', examsRouter);
 app.route('/api/analysis', analysisRouter);
 app.route('/api/vocabulary', vocabularyRouter);
 
+// Fallback to static assets if running as a unified Cloudflare Worker with Assets
+app.all('*', async (c) => {
+  if (c.env.ASSETS) {
+    return c.env.ASSETS.fetch(c.req.raw);
+  }
+  return c.notFound();
+});
+
 export default app;

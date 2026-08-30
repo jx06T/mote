@@ -1,10 +1,24 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
-import { BookOpen, PenTool, Award, ArrowRight } from 'lucide-react';
+import { BookOpen, PenTool, Award, ArrowRight, AlertCircle } from 'lucide-react';
+
+const ERROR_MESSAGES: Record<string, string> = {
+  oauth_config_missing: '系統尚未完成 Google OAuth 憑證配置 (GOOGLE_CLIENT_ID / SECRET)。',
+  client_id_missing: '缺少 Google Client ID 配置，請檢查後端環境變數。',
+  token_exchange_failed: 'Google 授權碼交換失敗，請確認重新導向 URI 是否與 Google Console 一致。',
+  userinfo_failed: '讀取 Google 個人檔案失敗，請重新嘗試。',
+  google_denied: '您已取消 Google 登入授權。',
+  code_missing: '未接收到有效的 Google 授權碼。',
+  db_error: '雲端資料庫寫入失敗，請確認 Cloudflare D1 資料庫是否已完成資料表初始化遷移。',
+  oauth_internal_error: '登入過程中發生未預期錯誤，請稍後重試。',
+};
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const errorKey = searchParams.get('error');
+  const errorMessage = errorKey ? ERROR_MESSAGES[errorKey] || `登入失敗 (${errorKey})` : null;
 
   const handleGoogleLogin = () => {
     window.location.href = '/api/auth/google';
@@ -29,6 +43,13 @@ export const LoginPage: React.FC = () => {
             高中生專屬生活素材累積、思考深化與作文訓練系統。
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="p-3.5 bg-status-danger/10 border border-status-danger/30 rounded-xl text-left flex items-start space-x-2 text-xs text-status-danger">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
         {/* Core Pillars */}
         <div className="grid grid-cols-3 gap-2 py-2 text-[11px] text-text-muted border-y border-border-subtle/60">
