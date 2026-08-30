@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192x192.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mote" />
+    <meta name="application-name" content="Mote" />
+    <meta name="theme-color" content="#FAF8F5" />
+
+    <title>Mote — 高中生 AI 作文訓練工具</title>
+  </head>
+  <body class="bg-page-bg text-text-main antialiased select-none">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then((reg) => {
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    newWorker.postMessage('SKIP_WAITING');
+                  }
+                });
+              }
+            });
+          }).catch((err) => {
+            console.warn('[SW Registration Error]', err);
+          });
+
+          let refreshing = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            refreshing = true;
+            window.location.reload();
+          });
+        });
+      }
+    </script>
+  </body>
+</html>

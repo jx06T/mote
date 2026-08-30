@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Layer 1: Brand Primary Scale (Warm Earth / Ink Palette) */
+  --color-primary-50: #FBF8F5;
+  --color-primary-100: #F4EDE5;
+  --color-primary-200: #E7DACD;
+  --color-primary-300: #D5BEAB;
+  --color-primary-400: #BD9E84;
+  --color-primary-500: #8B5E3C;
+  --color-primary-600: #764D2F;
+  --color-primary-700: #5E3C24;
+  --color-primary-800: #492F1C;
+  --color-primary-900: #382416;
+  --color-primary-950: #23160D;
+
+  --color-primary: var(--color-primary-500);
+  --color-primary-hover: var(--color-primary-600);
+
+  /* Layer 2: Neutral Scale */
+  --color-neutral-50: #FAF8F5;
+  --color-neutral-100: #F4F0E8;
+  --color-neutral-200: #EAE4D7;
+  --color-neutral-300: #D8CEBD;
+  --color-neutral-400: #A89B85;
+  --color-neutral-500: #786C58;
+  --color-neutral-600: #5C5241;
+  --color-neutral-700: #443B2E;
+  --color-neutral-800: #2D271E;
+  --color-neutral-900: #1B1712;
+  --color-neutral-950: #0F0D0A;
+
+  /* Layer 3: Accent Colors */
+  --color-accent-warm: #C06C54;
+  --color-accent-cool: #5A7D7C;
+  --color-accent-neutral: #C5A059;
+
+  /* Layer 4: Brand Aliases */
+  --color-brand: #8B5E3C;
+  --color-brand-light: #F4EDE5;
+  --color-brand-dark: #382416;
+
+  /* Layer 5: Core UI Tokens */
+  --color-page-bg: #FAF8F5;
+  --color-surface: #FFFFFF;
+  --color-surface-elevated: #F5F1EB;
+  --color-border-subtle: #E7E0D6;
+  --color-text-main: #292524;
+  --color-text-soft: #57534E;
+  --color-text-muted: #78716C;
+
+  /* Status Tokens */
+  --color-status-success: #2E7D32;
+  --color-status-warning: #ED6C02;
+  --color-status-danger: #D32F2F;
+  --color-status-info: #0288D1;
+
+  /* Fonts */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Noto Sans TC", sans-serif;
+  --font-display: "Songti TC", "Noto Serif TC", "Source Han Serif TC", Georgia, serif;
+  --font-mono: "SF Mono", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(56, 36, 22, 0.04);
+  --shadow-sm: 0 2px 4px 0 rgba(56, 36, 22, 0.06), 0 1px 2px 0 rgba(56, 36, 22, 0.04);
+  --shadow-md: 0 4px 12px 0 rgba(56, 36, 22, 0.08), 0 2px 4px 0 rgba(56, 36, 22, 0.04);
+  --shadow-lg: 0 10px 24px -3px rgba(56, 36, 22, 0.1), 0 4px 6px -2px rgba(56, 36, 22, 0.05);
+}
+
+@layer theme {
+  .dark {
+    --color-primary: var(--color-primary-400);
+    --color-primary-hover: var(--color-primary-300);
+
+    --color-page-bg: #151311;
+    --color-surface: #1E1B18;
+    --color-surface-elevated: #2A2622;
+    --color-border-subtle: #38332D;
+    --color-text-main: #F5F2EB;
+    --color-text-soft: #D6CFBE;
+    --color-text-muted: #9E9584;
+
+    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 12px 0 rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 10px 24px -3px rgba(0, 0, 0, 0.7);
+  }
+}
+
+@layer base {
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background-color: var(--color-page-bg);
+    color: var(--color-text-main);
+    font-family: var(--font-sans);
+  }
+
+  body {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  #root {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  input, textarea, select, [contenteditable="true"] {
+    user-select: auto;
+    -webkit-user-select: auto;
+  }
+
+  /* Scrollbar styles */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-subtle);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-muted);
+  }
+}
+
+/* Utilities */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+canvas.pencil-active {
+  touch-action: none;
+}
+
+/* ProseMirror / Tiptap custom styling for clean paper essay feel */
+.tiptap {
+  outline: none;
+  min-height: 100%;
+  font-family: var(--font-display);
+  line-height: 2.1;
+  font-size: 1.125rem;
+  letter-spacing: 0.05em;
+}
+
+.tiptap p {
+  text-indent: 2em;
+  margin-bottom: 0.75rem;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--color-text-muted);
+  pointer-events: none;
+  height: 0;
+  text-indent: 2em;
+}

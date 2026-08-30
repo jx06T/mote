@@ -1,3 +1,5 @@
+/// <reference types="@cloudflare/workers-types" />
+
 export interface Bindings {
   DB: D1Database;
   STORAGE: R2Bucket;
