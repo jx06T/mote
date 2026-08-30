@@ -55,6 +55,7 @@ npx wrangler secret put JWT_SECRET
 
 ## 3. Google Cloud Console (OAuth 設定)
 
+
 1. 前往 [Google Cloud Console](https://console.cloud.google.com/)。
 2. 建立新專案或選取現有專案。
 3. 前往 **API 與服務 > 憑證**，建立或編輯 **OAuth 2.0 用戶端 ID**（應用程式類型：網頁應用程式）。
