@@ -104,7 +104,7 @@ export const QuickNotesPage: React.FC = () => {
 
       {/* Interview Modal */}
       {activeInterviewNote && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
           <div className="w-full max-w-lg">
             <MaterialInterviewView
               noteContent={activeInterviewNote}

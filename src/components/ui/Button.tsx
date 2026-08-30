@@ -22,9 +22,9 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variants = {
     primary: 'bg-primary text-white hover:bg-primary-hover shadow-xs active:scale-[0.99]',
-    secondary: 'bg-neutral-100 text-text-main hover:bg-neutral-200 active:scale-[0.99]',
-    outline: 'border border-border-subtle bg-surface text-text-main hover:bg-neutral-100 active:scale-[0.99]',
-    ghost: 'text-text-soft hover:bg-neutral-100 hover:text-text-main',
+    secondary: 'bg-surface-elevated text-text-main hover:bg-border-subtle active:scale-[0.99]',
+    outline: 'border border-border-subtle bg-surface text-text-main hover:bg-surface-elevated active:scale-[0.99]',
+    ghost: 'text-text-soft hover:bg-surface-elevated hover:text-text-main',
     danger: 'bg-status-danger text-white hover:opacity-90 active:scale-[0.99]',
   };
 

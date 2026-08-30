@@ -45,7 +45,7 @@ export const DesktopSidebar: React.FC = () => {
                     'flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all',
                     isActive
                       ? 'bg-primary/10 text-primary font-semibold shadow-xs'
-                      : 'text-text-soft hover:bg-neutral-100 hover:text-text-main'
+                      : 'text-text-soft hover:bg-surface-elevated hover:text-text-main'
                   )
                 }
               >
@@ -54,7 +54,7 @@ export const DesktopSidebar: React.FC = () => {
                   <span>{item.label}</span>
                 </div>
                 {item.memberOnly && !isLoggedIn && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-neutral-100 text-text-muted flex items-center">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-surface-elevated text-text-muted flex items-center">
                     <Lock className="w-2.5 h-2.5 mr-0.5" />
                     會員
                   </span>
@@ -90,7 +90,7 @@ export const DesktopSidebar: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div className="p-3 bg-neutral-100 rounded-xl space-y-2 text-xs">
+          <div className="p-3 bg-surface-elevated border border-border-subtle rounded-xl space-y-2 text-xs">
             <div className="flex items-center justify-between text-text-soft">
               <span className="font-semibold">訪客模式</span>
               <span className="text-[10px] text-text-muted">本機暫存</span>

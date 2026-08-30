@@ -46,7 +46,7 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
   return (
     <div
       role="alert"
-      className={`flex items-start justify-between gap-3 p-3.5 bg-surface/95 backdrop-blur-md border ${getBorderColor()} rounded-xl shadow-lg shadow-neutral-950/5 min-w-72 max-w-md animate-in slide-in-from-top-2 duration-200`}
+      className={`flex items-start justify-between gap-3 p-3.5 bg-surface/95 backdrop-blur-md border ${getBorderColor()} rounded-xl shadow-lg shadow-black/5 min-w-72 max-w-md animate-in slide-in-from-top-2 duration-200`}
     >
       <div className="flex items-start space-x-2.5 flex-1">
         <div className="mt-0.5">{getIcon()}</div>

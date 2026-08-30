@@ -84,7 +84,7 @@ export const AuthModal: React.FC = () => {
           <button
             onClick={closeAuthModal}
             aria-label="關閉對話框"
-            className="p-1.5 text-text-muted hover:text-text-main rounded-lg hover:bg-neutral-100 transition-colors"
+            className="p-1.5 text-text-muted hover:text-text-main rounded-lg hover:bg-surface-elevated transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -105,7 +105,7 @@ export const AuthModal: React.FC = () => {
                 {comparisonItems.map((item, idx) => (
                   <tr
                     key={idx}
-                    className={item.highlight ? 'bg-primary/5 font-medium' : 'hover:bg-neutral-50/50'}
+                    className={item.highlight ? 'bg-primary/5 font-medium' : 'hover:bg-surface-elevated/50'}
                   >
                     <td className="py-2.5 px-3 text-text-main flex items-center space-x-1.5">
                       {item.highlight ? (

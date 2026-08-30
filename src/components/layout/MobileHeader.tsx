@@ -47,7 +47,7 @@ export const MobileHeader: React.FC<{ title?: string }> = ({ title = 'Mote' }) =
 
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-lg text-text-muted hover:text-text-main hover:bg-neutral-100 transition-colors"
+          className="p-2 rounded-lg text-text-muted hover:text-text-main hover:bg-surface-elevated transition-colors"
           aria-label="切換深淺模式"
         >
           {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}

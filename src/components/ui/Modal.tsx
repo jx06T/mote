@@ -39,7 +39,7 @@ export const Modal: React.FC<ModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-neutral-950/40 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
 
@@ -52,7 +52,7 @@ export const Modal: React.FC<ModalProps> = ({
             <h3 className="text-base font-semibold text-text-main font-display">{title}</h3>
             <button
               onClick={onClose}
-              className="p-1 rounded-md text-text-muted hover:text-text-main hover:bg-neutral-100 transition-colors"
+              className="p-1 rounded-md text-text-muted hover:text-text-main hover:bg-surface-elevated transition-colors"
             >
               <X className="w-4 h-4" />
             </button>

@@ -106,7 +106,7 @@ export const DashboardPage: React.FC = () => {
           onClick={() => navigate('/quick-notes')}
           className="flex flex-col items-center justify-center p-3.5 bg-surface border border-border-subtle hover:border-primary/40 rounded-xl transition-all shadow-xs group text-center"
         >
-          <div className="w-9 h-9 rounded-lg bg-neutral-100 group-hover:bg-primary/10 flex items-center justify-center text-text-soft group-hover:text-primary mb-2 transition-colors">
+          <div className="w-9 h-9 rounded-lg bg-surface-elevated group-hover:bg-primary/10 flex items-center justify-center text-text-soft group-hover:text-primary mb-2 transition-colors">
             <FileText className="w-5 h-5" />
           </div>
           <span className="text-xs font-semibold text-text-main">隨手筆記</span>
@@ -117,7 +117,7 @@ export const DashboardPage: React.FC = () => {
           onClick={() => navigate('/materials')}
           className="flex flex-col items-center justify-center p-3.5 bg-surface border border-border-subtle hover:border-primary/40 rounded-xl transition-all shadow-xs group text-center"
         >
-          <div className="w-9 h-9 rounded-lg bg-neutral-100 group-hover:bg-primary/10 flex items-center justify-center text-text-soft group-hover:text-primary mb-2 transition-colors">
+          <div className="w-9 h-9 rounded-lg bg-surface-elevated group-hover:bg-primary/10 flex items-center justify-center text-text-soft group-hover:text-primary mb-2 transition-colors">
             <BookOpen className="w-5 h-5" />
           </div>
           <span className="text-xs font-semibold text-text-main">個人素材庫</span>
@@ -128,7 +128,7 @@ export const DashboardPage: React.FC = () => {
           onClick={() => navigate('/editor')}
           className="flex flex-col items-center justify-center p-3.5 bg-surface border border-border-subtle hover:border-primary/40 rounded-xl transition-all shadow-xs group text-center"
         >
-          <div className="w-9 h-9 rounded-lg bg-neutral-100 group-hover:bg-primary/10 flex items-center justify-center text-text-soft group-hover:text-primary mb-2 transition-colors">
+          <div className="w-9 h-9 rounded-lg bg-surface-elevated group-hover:bg-primary/10 flex items-center justify-center text-text-soft group-hover:text-primary mb-2 transition-colors">
             <PenTool className="w-5 h-5" />
           </div>
           <span className="text-xs font-semibold text-text-main">電子寫作</span>
@@ -139,7 +139,7 @@ export const DashboardPage: React.FC = () => {
           onClick={() => navigate('/exams')}
           className="flex flex-col items-center justify-center p-3.5 bg-surface border border-border-subtle hover:border-primary/40 rounded-xl transition-all shadow-xs group text-center"
         >
-          <div className="w-9 h-9 rounded-lg bg-neutral-100 group-hover:bg-primary/10 flex items-center justify-center text-text-soft group-hover:text-primary mb-2 transition-colors">
+          <div className="w-9 h-9 rounded-lg bg-surface-elevated group-hover:bg-primary/10 flex items-center justify-center text-text-soft group-hover:text-primary mb-2 transition-colors">
             <Award className="w-5 h-5" />
           </div>
           <span className="text-xs font-semibold text-text-main">紙本模擬考</span>
@@ -260,7 +260,7 @@ export const DashboardPage: React.FC = () => {
 
       {/* Modal for Deepening Interview */}
       {activeInterviewNote && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
           <div className="w-full max-w-lg">
             <MaterialInterviewView
               noteContent={activeInterviewNote}

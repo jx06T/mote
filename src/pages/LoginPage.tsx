@@ -50,7 +50,7 @@ export const LoginPage: React.FC = () => {
         <div className="space-y-3 pt-2">
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center space-x-3 px-4 py-3 bg-surface hover:bg-neutral-100 border border-border-subtle text-text-main font-medium rounded-xl text-sm transition-all shadow-xs active:scale-[0.99]"
+            className="w-full flex items-center justify-center space-x-3 px-4 py-3 bg-surface hover:bg-surface-elevated border border-border-subtle text-text-main font-medium rounded-xl text-sm transition-all shadow-xs active:scale-[0.99]"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path

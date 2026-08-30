@@ -61,7 +61,7 @@ export const ExamPhotoUpload: React.FC<ExamPhotoUploadProps> = ({ onProceedToOCR
             key={idx}
             className="relative bg-surface border border-border-subtle rounded-2xl overflow-hidden shadow-xs flex flex-col items-center p-3 space-y-2 group"
           >
-            <div className="w-full aspect-3/4 bg-neutral-100 rounded-xl overflow-hidden flex items-center justify-center border border-border-subtle/50">
+            <div className="w-full aspect-3/4 bg-surface-elevated rounded-xl overflow-hidden flex items-center justify-center border border-border-subtle/50">
               <img
                 src={p.image}
                 alt={`Page ${idx + 1}`}

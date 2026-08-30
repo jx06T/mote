@@ -90,7 +90,7 @@ export const SettingsPage: React.FC = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-neutral-100 text-text-muted flex items-center justify-center font-bold text-sm font-serif">
+                <div className="w-10 h-10 rounded-full bg-surface-elevated text-text-muted flex items-center justify-center font-bold text-sm font-serif border border-border-subtle">
                   訪
                 </div>
                 <div>
