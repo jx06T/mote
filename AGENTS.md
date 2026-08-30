@@ -35,8 +35,32 @@
   4. **手寫繪圖與筆跡處理**: 涉及 Canvas 繪圖、Apple Pencil 壓感、防誤觸、向量筆跡儲存 (DrawData) 時，必須參考並遵循 [.agents/skills/apple-pencil-drawing/SKILL.md](file:///d:/Document_J/mote/.agents/skills/apple-pencil-drawing/SKILL.md)。
   5. **訪客與會員權限分離與無縫同步**: 涉及訪客試用、本機與雲端雙軌存取、頂部提示橫幅 (`GuestNoticeBanner`)、登入同步 (`OfflineSyncManager`) 時，必須參考並遵循 [.agents/skills/auth-guest-permissions/SKILL.md](file:///d:/Document_J/mote/.agents/skills/auth-guest-permissions/SKILL.md)。
 
-## Git Version Control & Deployment Workflow (版本控制與部署規範)
+## 開發、驗證與提交標準作業流程 (Development, Verification & Commit Workflow)
+
+每次新增功能、修改組件、重構或修復錯誤時，Agent 必須強制遵循以下三階段標準流程：
+
+### 1. 實作與編寫階段 (Implementation Phase)
+- **查閱規格與技能規範**: 實作前對齊 `doc/PRD_V1.md`、`doc/ENGINEERING_SPEC.md` 與對應的 Skill 指引（Tailwind v4 色彩 Token、No Emojis、訪客與會員權限分離等）。
+- **模組化實作**: 前端元件置於 `src/components/`，頁面置於 `src/pages/`，後端路由置於 `worker/src/routes/`，提示詞集中於 `worker/src/prompts/`。
+
+### 2. 自主驗證階段 (Self-Verification Phase)
+每次修改程式碼後，**必須在提交前自主執行驗證**，確保 0 錯誤：
+- **靜態型別與建置檢查**: 執行 `npm run build`（包含 `tsc` 型別編譯與 Vite 靜態打包），確認 0 TypeScript 錯誤、0 Rollup 警告。
+- **資料庫遷移與約束校驗**: 若涉及 D1 Schema 或後端模型變更，執行 `npm run db:migrate:local` 驗證 SQL DDL 語法與外鍵條件約束。
+- **規則稽核 (No Emojis & Token Check)**: 確認變更內容未引入任何表情符號（Unicode Emoji），且所有樣式皆採用語意化 Token（如 `bg-surface`、`text-text-main`），無直接 hardcoded hex 顏色。
+
+### 3. 本機分階段提交 (Modular Local Commit Phase)
+- **檢查變更狀態**: 執行 `git status` 與 `git diff` 審查變更檔案。
+- **模組化提交**: 使用 Conventional Commits 格式撰寫清晰 Commit Message，禁止將多個互不相干的功能混雜於單一 Commit：
+  - `feat:` 新增功能或組件（例如：`feat(editor): add revision timeline diff preview`）
+  - `fix:` 修復問題或錯誤（例如：`fix(settings): render guest status dynamically`）
+  - `refactor:` 程式碼重構或架構調整（例如：`refactor(nav): streamline mobile bottom nav`）
+  - `perf:` 效能最佳化（例如：`perf(build): configure code splitting`）
+  - `docs:` 文件更新（例如：`docs: update workflow guidelines in AGENTS.md`）
+- **同步更新 Walkthrough**: 在 `walkthrough.md` 成果報告中記錄本次修改項目、架構說明與驗證結果。
+- **嚴禁隨意 Git Push**: 僅在重大里程碑完成或經由使用者明確要求時才推送。
+
+## Git Version Control & Deployment Workflow (版本控制規範)
 
 - **分支管理**: 僅使用 `main` 與 `dev` 分支，禁止建立大量長期 feature branch。
 - **嚴禁隨意 Git Push**: Agent 不得隨意或在微小修改後自動執行 `git push`。僅在重大里程碑完成或經由使用者明確要求時才推送。
-- **分階段本機規範提交**: 變更必須經由本地驗證（TypeScript 檢查、ESLint 等），並使用 Conventional Commits 格式（`feat:`, `fix:`, `refactor:`, `docs:`）進行模組化分階段本機 commit。
