@@ -151,6 +151,19 @@ materialsRouter.post('/', authMiddleware, async (c) => {
         )
         .run();
     }
+
+    // If linked to a source quick note, mark it as converted
+    if (sourceNoteId) {
+      try {
+        await c.env.DB.prepare(
+          'UPDATE quick_notes SET status = "converted", updated_at = ? WHERE id = ? AND user_id = ?'
+        )
+          .bind(now, sourceNoteId, userId)
+          .run();
+      } catch (qnErr) {
+        console.warn('[D1 Update Source Note Status Warning]', qnErr);
+      }
+    }
   } catch (err) {
     console.error('[D1 Save Material Error]', err);
     return c.json({ error: 'Failed to save material' }, 500);
@@ -203,48 +216,70 @@ materialsRouter.delete('/:id', authMiddleware, async (c) => {
 
 // 5. Material Interview (AI-guided deepening - Guests & Members)
 materialsRouter.post('/interview', optionalAuthMiddleware, async (c) => {
-  const body = await c.req.json();
-  const noteContent = body.noteContent || '';
-  const history = body.history || [];
-  const action = body.action || 'question'; // 'question' | 'summarize'
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const noteContent = (body.noteContent || '').trim();
+    const history = Array.isArray(body.history) ? body.history : [];
+    const action = body.action || 'question'; // 'question' | 'summarize'
 
-  const aiService = new AIService(c.env);
+    if (!noteContent) {
+      return c.json({ error: '筆記內容不可為空' }, 400);
+    }
 
-  if (action === 'summarize') {
-    const summaryCard = await aiService.summarizeMaterialCard(noteContent, history);
-    return c.json({ summaryCard });
+    const aiService = new AIService(c.env);
+
+    if (action === 'summarize') {
+      const summaryCard = await aiService.summarizeMaterialCard(noteContent, history);
+      return c.json({ summaryCard });
+    }
+
+    const nextQuestion = await aiService.generateInterviewQuestion(noteContent, history);
+    return c.json({ nextQuestion });
+  } catch (err: any) {
+    console.error('[Material Interview Route Error]', err);
+    return c.json(
+      {
+        nextQuestion: '在那一瞬間，有什麼特別的聲音、氣味或眼前映入的畫面讓你印象最深？',
+        error: err.message,
+      },
+      500
+    );
   }
-
-  const nextQuestion = await aiService.generateInterviewQuestion(noteContent, history);
-  return c.json({ nextQuestion });
 });
 
 // 6. Reverse Search (Match materials with prompt - Guests & Members)
 materialsRouter.post('/reverse-search', optionalAuthMiddleware, async (c) => {
-  const userId = c.get('userId');
-  const body = await c.req.json();
-  const promptText = body.promptText || '';
+  try {
+    const userId = c.get('userId');
+    const body = await c.req.json().catch(() => ({}));
+    const promptText = (body.promptText || '').trim();
 
-  let materialsList: any[] = body.materials || [];
-  if (userId && c.env.DB) {
-    try {
-      const { results } = await c.env.DB.prepare(
-        'SELECT * FROM materials WHERE user_id = ? ORDER BY created_at DESC'
-      )
-        .bind(userId)
-        .all();
-      materialsList = (results || []).map((r: any) => ({
-        ...r,
-        people: r.people_json ? JSON.parse(r.people_json) : [],
-        themes: r.themes_json ? JSON.parse(r.themes_json) : [],
-        tags: r.tags_json ? JSON.parse(r.tags_json) : [],
-      }));
-    } catch (err) {
-      console.error('[D1 Reverse Search Error]', err);
+    let materialsList: any[] = Array.isArray(body.materials) ? body.materials : [];
+
+    // If client didn't supply materials and user is logged in, query D1
+    if (materialsList.length === 0 && userId && c.env.DB) {
+      try {
+        const { results } = await c.env.DB.prepare(
+          'SELECT * FROM materials WHERE user_id = ? ORDER BY created_at DESC'
+        )
+          .bind(userId)
+          .all();
+        materialsList = (results || []).map((r: any) => ({
+          ...r,
+          people: r.people_json ? JSON.parse(r.people_json) : [],
+          themes: r.themes_json ? JSON.parse(r.themes_json) : [],
+          tags: r.tags_json ? JSON.parse(r.tags_json) : [],
+        }));
+      } catch (err) {
+        console.error('[D1 Reverse Search Error]', err);
+      }
     }
-  }
 
-  const aiService = new AIService(c.env);
-  const matches = await aiService.matchMaterialsWithPrompt(promptText, materialsList);
-  return c.json({ matches });
+    const aiService = new AIService(c.env);
+    const matches = await aiService.matchMaterialsWithPrompt(promptText, materialsList);
+    return c.json({ matches });
+  } catch (err: any) {
+    console.error('[Material Reverse Search Route Error]', err);
+    return c.json({ matches: [] });
+  }
 });

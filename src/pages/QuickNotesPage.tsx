@@ -6,12 +6,13 @@ import { QuickNoteInput } from '../components/quick-note/QuickNoteInput';
 import { MaterialInterviewView } from '../components/materials/MaterialInterviewView';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { Trash2, Sparkles, Clock, FileText } from 'lucide-react';
+import { Badge } from '../components/ui/Badge';
+import { Trash2, Sparkles, Clock, CheckCircle2 } from 'lucide-react';
 
 export const QuickNotesPage: React.FC = () => {
   const navigate = useNavigate();
   const [notes, setNotes] = useState<QuickNote[]>([]);
-  const [activeInterviewNote, setActiveInterviewNote] = useState<string | null>(null);
+  const [activeInterviewNote, setActiveInterviewNote] = useState<QuickNote | null>(null);
 
   const loadNotes = async () => {
     const list = await QuickNotesAPI.list();
@@ -33,6 +34,9 @@ export const QuickNotesPage: React.FC = () => {
   };
 
   const handleInterviewComplete = async (materialCard: any) => {
+    if (activeInterviewNote) {
+      await QuickNotesAPI.updateStatus(activeInterviewNote.id, 'converted');
+    }
     await MaterialsAPI.save(materialCard);
     setActiveInterviewNote(null);
     navigate('/materials');
@@ -67,9 +71,18 @@ export const QuickNotesPage: React.FC = () => {
                 key={note.id}
                 className="bg-surface border-border-subtle p-4 space-y-3 shadow-xs"
               >
-                <p className="text-sm text-text-main leading-relaxed font-display">
-                  {note.content}
-                </p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm text-text-main leading-relaxed font-display flex-1">
+                    {note.content}
+                  </p>
+                  {note.status === 'converted' && (
+                    <Badge variant="success" className="shrink-0 text-[10px]">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      已轉素材
+                    </Badge>
+                  )}
+                </div>
+
                 <div className="flex items-center justify-between pt-2 border-t border-border-subtle/50 text-xs text-text-muted">
                   <span className="flex items-center text-[11px]">
                     <Clock className="w-3 h-3 mr-1" />
@@ -88,7 +101,7 @@ export const QuickNotesPage: React.FC = () => {
                     </button>
                     <Button
                       size="sm"
-                      onClick={() => setActiveInterviewNote(note.content)}
+                      onClick={() => setActiveInterviewNote(note)}
                       className="text-xs py-1 px-2.5 rounded-lg"
                     >
                       <Sparkles className="w-3 h-3 mr-1" />
@@ -107,7 +120,8 @@ export const QuickNotesPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
           <div className="w-full max-w-lg">
             <MaterialInterviewView
-              noteContent={activeInterviewNote}
+              noteContent={activeInterviewNote.content}
+              sourceQuickNoteId={activeInterviewNote.id}
               onComplete={handleInterviewComplete}
               onCancel={() => setActiveInterviewNote(null)}
             />

@@ -31,7 +31,7 @@ export const DashboardPage: React.FC = () => {
   const [weaknesses, setWeaknesses] = useState<WeaknessItem[]>([]);
 
   // Deepening Interview Modal
-  const [activeInterviewNote, setActiveInterviewNote] = useState<string | null>(null);
+  const [activeInterviewNote, setActiveInterviewNote] = useState<QuickNote | null>(null);
 
   const loadData = async () => {
     try {
@@ -66,6 +66,9 @@ export const DashboardPage: React.FC = () => {
 
   const handleInterviewComplete = async (materialCard: any) => {
     try {
+      if (activeInterviewNote) {
+        await QuickNotesAPI.updateStatus(activeInterviewNote.id, 'converted');
+      }
       await MaterialsAPI.save(materialCard);
       setActiveInterviewNote(null);
       toast.success('已成功將對話整理為素材卡並存庫！');
@@ -175,7 +178,7 @@ export const DashboardPage: React.FC = () => {
                 </p>
                 <Button
                   size="sm"
-                  onClick={() => setActiveInterviewNote(note.content)}
+                  onClick={() => setActiveInterviewNote(note)}
                   className="shrink-0 text-xs py-1 px-2.5 rounded-lg"
                 >
                   <Sparkles className="w-3 h-3 mr-1" />
@@ -263,7 +266,8 @@ export const DashboardPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
           <div className="w-full max-w-lg">
             <MaterialInterviewView
-              noteContent={activeInterviewNote}
+              noteContent={activeInterviewNote.content}
+              sourceQuickNoteId={activeInterviewNote.id}
               onComplete={handleInterviewComplete}
               onCancel={() => setActiveInterviewNote(null)}
             />

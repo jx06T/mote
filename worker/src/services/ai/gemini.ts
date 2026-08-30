@@ -65,20 +65,29 @@ export class AIService {
       }
     }
 
-    // Heuristic Fallback
-    const userTexts = history.filter((m) => m.role === 'user').map((m) => m.content).join('；');
+    // Heuristic Fallback - Strictly based on student input, no fabricated filler
+    const userAnswers = history
+      .filter((m) => m.role === 'user')
+      .map((m) => m.content.trim())
+      .filter(Boolean);
+
+    const title = noteContent.length > 15 ? `${noteContent.slice(0, 15)}...` : (noteContent || '生活片段素材');
+    const combinedStory = userAnswers.length > 0
+      ? `${noteContent}。${userAnswers.join('；')}`
+      : noteContent;
+
     return {
-      title: noteContent.slice(0, 12) || '生活片段記錄',
-      story: `在一個平常的日子裡，發生了這件事：${noteContent}。經過回想與整理，當時的情景是：${userTexts || noteContent}`,
-      people: ['我', '身邊的同伴'],
-      time: '近期的某個午後',
-      location: '熟悉的校園與街道',
-      scene: '陽光穿過樹梢與斑駁的影子，周遭微弱的喧鬧聲。',
-      dialogue: '簡短而深刻的對話仍在耳邊迴盪。',
-      emotion: '由最初的平靜轉為微微的觸動與深思。',
-      reflection: '看似微不足道的一瞬，其實蘊藏著時間流逝與自我成長的痕跡。',
-      themes: ['生活觀察', '時間與記憶', '情感體悟'],
-      tags: ['生活記錄', '高中日常', '微小觀察'],
+      title,
+      story: combinedStory,
+      people: ['我'],
+      time: '',
+      location: '',
+      scene: '',
+      dialogue: '',
+      emotion: '',
+      reflection: '',
+      themes: ['生活記錄'],
+      tags: ['隨手筆記'],
     };
   }
 
@@ -107,21 +116,34 @@ export class AIService {
       }
     }
 
-    // Fallback matching
-    const keywords = promptText.split(/[，。！？\s]+/);
+    // Dynamic keyword matching fallback
+    const keywords = promptText
+      .split(/[\s，。！？、；：「」『』\n\r]+/)
+      .filter((k) => k.length > 1);
+
     return materials.map((mat, idx) => {
-      const match = keywords.some((k) => k && (mat.title.includes(k) || mat.story.includes(k)));
-      if (match || idx === 0) {
-        return {
-          materialId: mat.id,
-          rank: 'high',
-          reason: `素材中的情境與題目「${promptText.slice(0, 10)}...」在情感起伏與核心意象上高度契合，適合作為第一或第二段的焦點展開。`,
-        };
+      const matchCount = keywords.filter(
+        (k) =>
+          mat.title.includes(k) ||
+          mat.story.includes(k) ||
+          (mat.themes && mat.themes.some((t) => t.includes(k)))
+      ).length;
+
+      let rank: 'high' | 'medium' | 'low' = 'low';
+      let reason = `素材「${mat.title}」記錄了真實的生活經驗，可作為作文情境的鋪陳或補充細節。`;
+
+      if (matchCount >= 2 || (keywords.length <= 2 && matchCount >= 1)) {
+        rank = 'high';
+        reason = `素材「${mat.title}」與題目的核心意涵高度呼應，適合作為篇章的核心段落重點展開。`;
+      } else if (matchCount === 1 || idx === 0) {
+        rank = 'medium';
+        reason = `素材「${mat.title}」具有延伸發揮的潛力，可從轉折或對比視角切入，增添文章層次。`;
       }
+
       return {
         materialId: mat.id,
-        rank: idx % 2 === 0 ? 'medium' : 'low',
-        reason: '可以從轉折或次要對比的角度切入，增添文章層次。',
+        rank,
+        reason,
       };
     });
   }
@@ -270,22 +292,53 @@ export class AIService {
     history: Array<{ role: string; content: string }>,
     jsonMode = false
   ): Promise<string | null> {
+    if (!this.apiKey) return null;
+
+    const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+
+    if (history.length === 0) {
+      contents.push({
+        role: 'user',
+        parts: [{ text: systemPrompt }],
+      });
+    } else {
+      for (const msg of history) {
+        const role = msg.role === 'assistant' || msg.role === 'model' ? 'model' : 'user';
+        const text = (msg.content || '').trim();
+        if (!text) continue;
+
+        if (contents.length > 0 && contents[contents.length - 1].role === role) {
+          contents[contents.length - 1].parts[0].text += `\n${text}`;
+        } else {
+          contents.push({
+            role,
+            parts: [{ text }],
+          });
+        }
+      }
+
+      if (contents.length > 0 && contents[0].role === 'model') {
+        contents.unshift({
+          role: 'user',
+          parts: [{ text: '請開始引導' }],
+        });
+      }
+    }
+
     for (const model of CANDIDATE_MODELS) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
-      const contents = [
-        { role: 'user', parts: [{ text: systemPrompt }] },
-        ...history.map((m) => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }],
-        })),
-      ];
-
       const payload: any = {
         contents,
         generationConfig: {
           temperature: 0.3,
         },
       };
+
+      if (history.length > 0 && systemPrompt) {
+        payload.systemInstruction = {
+          parts: [{ text: systemPrompt }],
+        };
+      }
 
       if (jsonMode) {
         payload.generationConfig.responseMimeType = 'application/json';
@@ -304,7 +357,7 @@ export class AIService {
           if (text) return text;
         }
       } catch (err) {
-        // Try next candidate model
+        console.warn(`[Gemini API Model ${model} Failed]`, err);
       }
     }
     return null;

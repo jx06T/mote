@@ -3,7 +3,7 @@ import { MaterialsAPI } from '../../services/api';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
-import { Send, CheckCircle2, ArrowRight, Sparkles, MessageCircle } from 'lucide-react';
+import { Send, CheckCircle2, ArrowRight, Sparkles, MessageCircle, X } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -12,12 +12,14 @@ interface Message {
 
 interface MaterialInterviewViewProps {
   noteContent: string;
+  sourceQuickNoteId?: string;
   onComplete: (materialCard: any) => void;
   onCancel: () => void;
 }
 
 export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
   noteContent,
+  sourceQuickNoteId,
   onComplete,
   onCancel,
 }) => {
@@ -57,7 +59,7 @@ export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
     } catch {
       setMessages([
         ...nextMessages,
-        { role: 'assistant', content: '那一瞬間最深刻的聲音或光影是什麼？' },
+        { role: 'assistant', content: '在那一瞬間，有什麼特別的聲音、氣味或眼前映入的第一個畫面讓你印象最深？' },
       ]);
     } finally {
       setIsLoading(false);
@@ -68,9 +70,12 @@ export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
     setIsSummarizing(true);
     try {
       const card = await MaterialsAPI.summarizeInterview(noteContent, messages);
-      setSummaryCard(card);
+      setSummaryCard({
+        ...card,
+        source_quick_note_id: sourceQuickNoteId,
+      });
     } catch (err) {
-      console.error(err);
+      console.error('[Interview Summarize Error]', err);
     } finally {
       setIsSummarizing(false);
     }
@@ -78,11 +83,14 @@ export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
 
   const handleSaveCard = async () => {
     if (!summaryCard) return;
-    onComplete(summaryCard);
+    onComplete({
+      ...summaryCard,
+      source_quick_note_id: sourceQuickNoteId,
+    });
   };
 
   return (
-    <div className="flex flex-col h-[75vh] max-h-170 bg-page-bg rounded-2xl overflow-hidden border border-border-subtle shadow-sm">
+    <div className="flex flex-col h-[78vh] max-h-180 bg-page-bg rounded-2xl overflow-hidden border border-border-subtle shadow-sm">
       {/* Header */}
       <div className="p-3.5 border-b border-border-subtle bg-surface flex items-center justify-between">
         <div className="flex items-center space-x-2">
@@ -173,22 +181,66 @@ export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <Input
                 label="時間"
-                value={summaryCard.time || ''}
-                onChange={(e) => setSummaryCard({ ...summaryCard, time: e.target.value })}
+                placeholder="例如：高中某個午後"
+                value={summaryCard.time || summaryCard.time_desc || ''}
+                onChange={(e) =>
+                  setSummaryCard({
+                    ...summaryCard,
+                    time: e.target.value,
+                    time_desc: e.target.value,
+                  })
+                }
               />
               <Input
                 label="地點"
-                value={summaryCard.location || ''}
-                onChange={(e) => setSummaryCard({ ...summaryCard, location: e.target.value })}
+                placeholder="例如：學校圖書館一隅"
+                value={summaryCard.location || summaryCard.location_desc || ''}
+                onChange={(e) =>
+                  setSummaryCard({
+                    ...summaryCard,
+                    location: e.target.value,
+                    location_desc: e.target.value,
+                  })
+                }
               />
             </div>
 
             <Textarea
               label="當時的情緒與事後體悟"
               rows={2}
-              value={summaryCard.reflection || summaryCard.emotion || ''}
-              onChange={(e) => setSummaryCard({ ...summaryCard, reflection: e.target.value })}
+              placeholder="當時的心情轉折或這件事帶給你的啟發..."
+              value={summaryCard.reflection || summaryCard.reflection_desc || summaryCard.emotion || ''}
+              onChange={(e) =>
+                setSummaryCard({
+                  ...summaryCard,
+                  reflection: e.target.value,
+                  reflection_desc: e.target.value,
+                })
+              }
             />
+
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                label="主題分類（以頓號分隔）"
+                value={Array.isArray(summaryCard.themes) ? summaryCard.themes.join('、') : summaryCard.themes || ''}
+                onChange={(e) =>
+                  setSummaryCard({
+                    ...summaryCard,
+                    themes: e.target.value.split(/[、,，]+/).map((t: string) => t.trim()).filter(Boolean),
+                  })
+                }
+              />
+              <Input
+                label="自訂標籤（以頓號分隔）"
+                value={Array.isArray(summaryCard.tags) ? summaryCard.tags.join('、') : summaryCard.tags || ''}
+                onChange={(e) =>
+                  setSummaryCard({
+                    ...summaryCard,
+                    tags: e.target.value.split(/[、,，]+/).map((t: string) => t.trim()).filter(Boolean),
+                  })
+                }
+              />
+            </div>
           </div>
         )}
       </div>

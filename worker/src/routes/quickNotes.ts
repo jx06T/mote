@@ -65,7 +65,33 @@ quickNotesRouter.post('/', authMiddleware, async (c) => {
   }
 });
 
-// 3. Delete a quick note (Members only on cloud D1)
+// 3. Update quick note status (Members only on cloud D1)
+quickNotesRouter.patch('/:id', authMiddleware, async (c) => {
+  const id = c.req.param('id');
+  const userId = c.get('userId');
+  const body = await c.req.json().catch(() => ({}));
+  const status = body.status || 'active';
+  const now = Date.now();
+
+  if (!c.env.DB) {
+    return c.json({ error: 'Database binding not configured' }, 500);
+  }
+
+  try {
+    await c.env.DB.prepare(
+      'UPDATE quick_notes SET status = ?, updated_at = ? WHERE id = ? AND user_id = ?'
+    )
+      .bind(status, now, id, userId)
+      .run();
+
+    return c.json({ success: true, id, status });
+  } catch (err) {
+    console.error('[D1 Update QuickNote Status Error]', err);
+    return c.json({ error: 'Failed to update quick note' }, 500);
+  }
+});
+
+// 4. Delete a quick note (Members only on cloud D1)
 quickNotesRouter.delete('/:id', authMiddleware, async (c) => {
   const id = c.req.param('id');
   const userId = c.get('userId');

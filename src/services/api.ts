@@ -118,6 +118,35 @@ export const QuickNotesAPI = {
       );
     }
   },
+
+  async updateStatus(id: string, status: 'active' | 'converted' | 'archived'): Promise<void> {
+    if (!isAuthenticated()) {
+      const list = storage.local.get<QuickNote[]>(STORAGE_KEYS.QUICK_NOTES, []) || [];
+      const index = list.findIndex((n) => n.id === id);
+      if (index >= 0) {
+        list[index].status = status;
+        list[index].updated_at = Date.now();
+        storage.local.set(STORAGE_KEYS.QUICK_NOTES, list);
+      }
+      return;
+    }
+
+    try {
+      await fetchJSON(`/quick-notes/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+    } catch (err) {
+      console.warn('[QuickNotes updateStatus fallback]', err);
+      const list = storage.local.get<QuickNote[]>(STORAGE_KEYS.QUICK_NOTES, []) || [];
+      const index = list.findIndex((n) => n.id === id);
+      if (index >= 0) {
+        list[index].status = status;
+        list[index].updated_at = Date.now();
+        storage.local.set(STORAGE_KEYS.QUICK_NOTES, list);
+      }
+    }
+  },
 };
 
 // 2. Materials API (Dual Mode)
@@ -158,15 +187,21 @@ export const MaterialsAPI = {
         user_id: 'guest',
         title: data.title || '生活片段素材',
         story: data.story || '',
-        people: data.people || [],
-        time: data.time || '',
-        location: data.location || '',
-        scene: data.scene || '',
-        dialogue: data.dialogue || '',
-        emotion: data.emotion || '',
-        reflection: data.reflection || '',
-        themes: data.themes || [],
-        tags: data.tags || [],
+        people: data.people || ['我'],
+        time: data.time || data.time_desc || '',
+        time_desc: data.time || data.time_desc || '',
+        location: data.location || data.location_desc || '',
+        location_desc: data.location || data.location_desc || '',
+        scene: data.scene || data.scene_desc || '',
+        scene_desc: data.scene || data.scene_desc || '',
+        dialogue: data.dialogue || data.dialogue_desc || '',
+        dialogue_desc: data.dialogue || data.dialogue_desc || '',
+        emotion: data.emotion || data.emotion_desc || '',
+        emotion_desc: data.emotion || data.emotion_desc || '',
+        reflection: data.reflection || data.reflection_desc || '',
+        reflection_desc: data.reflection || data.reflection_desc || '',
+        themes: data.themes || ['生活記錄'],
+        tags: data.tags || ['隨手筆記'],
         created_at: data.created_at || now,
         updated_at: now,
       };
@@ -195,15 +230,15 @@ export const MaterialsAPI = {
         user_id: 'guest',
         title: data.title || '生活片段素材',
         story: data.story || '',
-        people: data.people || [],
+        people: data.people || ['我'],
         time: data.time || '',
         location: data.location || '',
         scene: data.scene || '',
         dialogue: data.dialogue || '',
         emotion: data.emotion || '',
         reflection: data.reflection || '',
-        themes: data.themes || [],
-        tags: data.tags || [],
+        themes: data.themes || ['生活記錄'],
+        tags: data.tags || ['隨手筆記'],
         created_at: data.created_at || now,
         updated_at: now,
       };
@@ -229,27 +264,35 @@ export const MaterialsAPI = {
     } catch (err) {
       console.warn('[Interview fallback]', err);
       if (action === 'summarize') {
-        const userAnswers = history.filter((m) => m.role === 'user').map((m) => m.content).join('；');
+        const userAnswers = history
+          .filter((m) => m.role === 'user')
+          .map((m) => m.content.trim())
+          .filter(Boolean);
+        const combinedStory = userAnswers.length > 0
+          ? `${noteContent}。${userAnswers.join('；')}`
+          : noteContent;
+        const title = noteContent.length > 15 ? `${noteContent.slice(0, 15)}...` : (noteContent || '生活片段素材');
+
         return {
           summaryCard: {
-            title: noteContent.slice(0, 10) || '生活觀察',
-            story: `${noteContent}。${userAnswers}`,
+            title,
+            story: combinedStory,
             people: ['我'],
-            time: '某個午後',
-            location: '校園角落',
-            scene: '光影灑落的微小片刻',
-            dialogue: '簡短深刻的話語',
-            emotion: '平靜與回味',
-            reflection: '看似平常的時光，蘊含著成長的痕跡。',
-            themes: ['生活觀察', '成長記憶'],
-            tags: ['生活', '日常'],
+            time: '',
+            location: '',
+            scene: '',
+            dialogue: '',
+            emotion: '',
+            reflection: '',
+            themes: ['生活記錄'],
+            tags: ['隨手筆記'],
           },
         };
       }
       const count = history.filter((h) => h.role === 'user').length;
       if (count === 1) return { nextQuestion: '當時身邊還有誰在場？他們當下的表情或動作是什麼？' };
-      if (count === 2) return { nextQuestion: '在那一瞬間，有什麼特別的聲音、氣味或映入眼簾的畫面？' };
-      return { nextQuestion: '這件事發生之後，你的心情有了什麼轉變？帶給你什麼想法？' };
+      if (count === 2) return { nextQuestion: '在那一瞬間，有什麼特別的聲音、氣味或眼前映入的第一個畫面讓你印象最深？' };
+      return { nextQuestion: '這件事發生之後，你的心情有了什麼變化？現在回想起來，它帶給你什麼啟發或想法？' };
     }
   },
 
@@ -264,20 +307,24 @@ export const MaterialsAPI = {
   },
 
   async reverseSearch(promptText: string, materialsList?: Material[]): Promise<Array<{ materialId: string; rank: 'high' | 'medium' | 'low'; reason: string }>> {
+    const mats = materialsList || (await MaterialsAPI.list());
     try {
       const res = await fetchJSON<{ matches: Array<{ materialId: string; rank: 'high' | 'medium' | 'low'; reason: string }> }>('/materials/reverse-search', {
         method: 'POST',
-        body: JSON.stringify({ promptText }),
+        body: JSON.stringify({ promptText, materials: mats }),
       });
       return res.matches || [];
     } catch (err) {
       console.warn('[Reverse Search fallback]', err);
-      const mats = materialsList || (await MaterialsAPI.list());
-      return mats.map((m, idx) => ({
-        materialId: m.id,
-        rank: idx === 0 ? 'high' : 'medium',
-        reason: '此素材的情感轉折與題意核心緊密呼應。',
-      }));
+      const keywords = promptText.split(/[\s，。！？、；：「」『』\n\r]+/).filter((k) => k.length > 1);
+      return mats.map((m, idx) => {
+        const matchCount = keywords.filter((k) => m.title.includes(k) || m.story.includes(k)).length;
+        return {
+          materialId: m.id,
+          rank: matchCount > 0 || idx === 0 ? 'high' : 'medium',
+          reason: `素材「${m.title}」與題目的情境相互呼應，適合作為寫作展開的切入點。`,
+        };
+      });
     }
   },
 };
