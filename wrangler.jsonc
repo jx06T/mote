@@ -26,11 +26,4 @@
       "binding": "STORAGE",
       "bucket_name": "mote-storage"
     }
-  ],
-  "kv_namespaces": [
-    {
-      "binding": "KV",
-      "id": "local-kv"
-    }
-  ]
 }
