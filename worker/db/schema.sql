@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS materials (
     emotion_desc TEXT,
     reflection_desc TEXT,
     themes_json TEXT,
+    tags_json TEXT,
+    source_quick_note_id TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE

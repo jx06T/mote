@@ -33,26 +33,17 @@ analysisRouter.post('/evaluate', authMiddleware, async (c) => {
     try {
       await c.env.DB.prepare(`
         INSERT INTO essay_analysis (
-          id, essay_id, exam_submission_id, user_id, prompt_match_score,
-          intent_depth_score, material_richness_score, structure_score,
-          description_score, language_score, emotion_score, conclusion_score,
-          overall_summary, strengths_json, weaknesses_json, next_practice_advice, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, essay_id, exam_submission_id, user_id,
+          overall_summary, scores_json, strengths_json, weaknesses_json, next_practice_advice, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
         .bind(
           id,
           body.essayId || null,
           body.examId || null,
           userId,
-          result.scores.promptMatch,
-          result.scores.intentDepth,
-          result.scores.materialRichness,
-          result.scores.structure,
-          result.scores.description,
-          result.scores.language,
-          result.scores.emotion,
-          result.scores.conclusion,
           result.overallSummary,
+          JSON.stringify(result.scores),
           JSON.stringify(result.strengths),
           JSON.stringify(result.weaknesses),
           result.nextPracticeAdvice,
@@ -121,19 +112,27 @@ analysisRouter.get('/latest', optionalAuthMiddleware, async (c) => {
       return c.json(null);
     }
 
+    let scores = {
+      promptMatch: 80,
+      intentDepth: 80,
+      materialRichness: 80,
+      structure: 80,
+      description: 80,
+      language: 80,
+      emotion: 80,
+      conclusion: 80,
+    };
+
+    if (row.scores_json) {
+      try {
+        scores = JSON.parse(row.scores_json);
+      } catch {}
+    }
+
     return c.json({
       id: row.id,
       overallSummary: row.overall_summary,
-      scores: {
-        promptMatch: row.prompt_match_score || 80,
-        intentDepth: row.intent_depth_score || 80,
-        materialRichness: row.material_richness_score || 80,
-        structure: row.structure_score || 80,
-        description: row.description_score || 80,
-        language: row.language_score || 80,
-        emotion: row.emotion_score || 80,
-        conclusion: row.conclusion_score || 80,
-      },
+      scores,
       strengths: row.strengths_json ? JSON.parse(row.strengths_json) : [],
       weaknesses: row.weaknesses_json ? JSON.parse(row.weaknesses_json) : [],
       nextPracticeAdvice: row.next_practice_advice,
