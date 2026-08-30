@@ -3,6 +3,7 @@ import { Toast, ToastItem, ToastType } from '../components/ui/Toast';
 
 interface ToastContextType {
   show: (message: string, type?: ToastType, title?: string, duration?: number) => void;
+  showToast: (type: ToastType, message: string, title?: string) => void;
   success: (message: string, title?: string) => void;
   error: (message: string, title?: string) => void;
   warning: (message: string, title?: string) => void;
@@ -51,9 +52,13 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     (message: string, title?: string) => show(message, 'info', title),
     [show]
   );
+  const showToast = useCallback(
+    (type: ToastType, message: string, title?: string) => show(message, type, title),
+    [show]
+  );
 
   return (
-    <ToastContext.Provider value={{ show, success, error, warning, info, dismiss }}>
+    <ToastContext.Provider value={{ show, showToast, success, error, warning, info, dismiss }}>
       {children}
       {/* Toast Overlay Container */}
       <div

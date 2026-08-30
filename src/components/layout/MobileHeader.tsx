@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { Moon, Sun, User, Sparkles } from 'lucide-react';
+import { Button } from '../ui/Button';
 
 export const MobileHeader: React.FC<{ title?: string }> = ({ title = 'Mote' }) => {
+  const { isLoggedIn, openAuthModal } = useAuth();
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -30,13 +33,26 @@ export const MobileHeader: React.FC<{ title?: string }> = ({ title = 'Mote' }) =
         </span>
       </div>
 
-      <button
-        onClick={toggleTheme}
-        className="p-2 rounded-lg text-text-muted hover:text-text-main hover:bg-neutral-100 transition-colors"
-        aria-label="切換深淺模式"
-      >
-        {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-      </button>
+      <div className="flex items-center space-x-1.5">
+        {!isLoggedIn && (
+          <Button
+            size="sm"
+            onClick={openAuthModal}
+            className="text-[11px] py-1 px-2.5 rounded-lg mr-1 h-7"
+          >
+            <Sparkles className="w-3 h-3 mr-1" />
+            登入
+          </Button>
+        )}
+
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-lg text-text-muted hover:text-text-main hover:bg-neutral-100 transition-colors"
+          aria-label="切換深淺模式"
+        >
+          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
+      </div>
     </header>
   );
 };

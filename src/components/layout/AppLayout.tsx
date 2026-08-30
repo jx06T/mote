@@ -3,6 +3,8 @@ import { Outlet } from 'react-router-dom';
 import { MobileHeader } from './MobileHeader';
 import { MobileBottomNav } from '../navigation/MobileBottomNav';
 import { DesktopSidebar } from './DesktopSidebar';
+import { GuestNoticeBanner } from '../auth/GuestNoticeBanner';
+import { AuthModal } from '../auth/AuthModal';
 
 export const AppLayout: React.FC = () => {
   return (
@@ -12,6 +14,7 @@ export const AppLayout: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
+        <GuestNoticeBanner />
         <MobileHeader />
 
         <main className="flex-1 overflow-y-auto no-scrollbar pb-20 md:pb-6">
@@ -20,6 +23,9 @@ export const AppLayout: React.FC = () => {
 
         <MobileBottomNav />
       </div>
+
+      {/* Global Auth / Upgrade Modal */}
+      <AuthModal />
     </div>
   );
 };

@@ -7,6 +7,8 @@ import { SelectionToolbar } from './SelectionToolbar';
 import { AIResultModal } from './AIResultModal';
 import { RevisionTimeline } from './RevisionTimeline';
 import { EssaysAPI, VocabularyAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
@@ -29,6 +31,8 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
   promptText,
   onSubmitForAnalysis,
 }) => {
+  const { checkAccess, openAuthModal } = useAuth();
+  const { showToast } = useToast();
   const [title, setTitle] = useState(initialTitle);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const [selectionPos, setSelectionPos] = useState<{ top: number; left: number } | null>(null);
@@ -105,6 +109,13 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
   ) => {
     if (!selectedText) return;
     setSelectionPos(null);
+
+    if (!checkAccess('essay_ai_assist')) {
+      openAuthModal();
+      showToast('warning', 'AI 寫作修辭輔助為會員專屬功能，請登入 Google 帳號免費解鎖！');
+      return;
+    }
+
     try {
       const res = await EssaysAPI.assist(selectedText, action, editor?.getText());
       setAiResult(res);
@@ -184,7 +195,14 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
           </button>
           <Button
             size="sm"
-            onClick={() => onSubmitForAnalysis(title, editor?.getText() || '')}
+            onClick={() => {
+              if (!checkAccess('essay_analysis')) {
+                openAuthModal();
+                showToast('warning', '作文八大面向評析為會員專屬功能，請登入 Google 帳號免費解鎖！');
+                return;
+              }
+              onSubmitForAnalysis(title, editor?.getText() || '');
+            }}
             className="text-xs py-1 px-3"
           >
             <Send className="w-3.5 h-3.5 mr-1" />

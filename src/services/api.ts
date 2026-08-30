@@ -289,20 +289,39 @@ export const EssaysAPI = {
     }
   },
 
-  async save(data: { id?: string; title?: string; content: string; status?: string }): Promise<Essay> {
+  async save(data: {
+    id?: string;
+    title?: string;
+    content?: string;
+    current_content?: string;
+    prompt_id?: string;
+    promptId?: string;
+    word_count?: number;
+    status?: string;
+  }): Promise<Essay> {
+    const essayContent = data.current_content || data.content || '';
+    const payload = {
+      id: data.id,
+      title: data.title,
+      content: essayContent,
+      promptId: data.prompt_id || data.promptId,
+      status: data.status,
+    };
+
     try {
       return await fetchJSON<Essay>('/essays', {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
     } catch {
       const now = Date.now();
       const newEssay: Essay = {
         id: data.id || `esy_${now}`,
         user_id: 'user_local',
+        prompt_id: data.prompt_id || data.promptId,
         title: data.title || '無標題作文',
-        current_content: data.content,
-        word_count: data.content.replace(/\s+/g, '').length,
+        current_content: essayContent,
+        word_count: data.word_count || essayContent.replace(/\s+/g, '').length,
         status: (data.status as any) || 'draft',
         created_at: now,
         updated_at: now,
