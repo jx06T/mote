@@ -57,11 +57,20 @@ npx wrangler secret put JWT_SECRET
 
 1. 前往 [Google Cloud Console](https://console.cloud.google.com/)。
 2. 建立新專案或選取現有專案。
-3. 前往 **API 與服務 > 憑證**，建立 **OAuth 2.0 用戶端 ID**（應用程式類型：網頁應用程式）。
-4. 設定 **已授權的 JavaScript 來源**：
-   - 本地開發：`http://localhost:3000`
+3. 前往 **API 與服務 > 憑證**，建立或編輯 **OAuth 2.0 用戶端 ID**（應用程式類型：網頁應用程式）。
+4. 設定 **已授權的 JavaScript 來源 (Authorized JavaScript origins)**：
+   - 本地開發：
+     - `http://localhost:3000`
+     - `http://127.0.0.1:3000`
    - 正式環境：`https://<your-project>.pages.dev`（或您的自訂域名）
-5. 設定 **已授權的重新導向 URI**：
-   - 本地開發：`http://localhost:3000/api/auth/callback` 或 `http://127.0.0.1:8787/api/auth/callback`
-   - 正式環境：`https://<your-worker-subdomain>.workers.dev/api/auth/callback`
-6. 將取得之 Client ID 與 Client Secret 填入上述變數中。
+5. 設定 **已授權的重新導向 URI (Authorized redirect URIs)**：
+   - 本地開發（建議全部加入）：
+     - `http://localhost:3000/api/auth/google/callback` （主要）
+     - `http://localhost:3000/api/auth/callback`
+     - `http://127.0.0.1:8787/api/auth/google/callback`
+     - `http://localhost:8787/api/auth/google/callback`
+   - 正式環境：
+     - `https://<your-project>.pages.dev/api/auth/google/callback`
+     - `https://<your-worker-subdomain>.workers.dev/api/auth/google/callback`
+6. 將取得之 Client ID 與 Client Secret 填入 `worker/.dev.vars` 檔案中。
+7. 儲存 Google Cloud Console 設定後通常需等待 1 到 5 分鐘同步生效。

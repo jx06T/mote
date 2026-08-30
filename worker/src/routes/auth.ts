@@ -1,8 +1,10 @@
-import { Hono } from 'hono';
+import { Hono, Context } from 'hono';
 import { Bindings, Variables } from '../types';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 
 export const authRouter = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+
+type AuthContext = Context<{ Bindings: Bindings; Variables: Variables }>;
 
 // 1. 取得當前已登入使用者資料
 authRouter.get('/me', authMiddleware, async (c) => {
@@ -33,6 +35,26 @@ authRouter.get('/me', authMiddleware, async (c) => {
   });
 });
 
+function getOAuthInfo(c: AuthContext) {
+  let explicitRedirectUri = c.req.query('redirect_uri') || (c.env as any).GOOGLE_REDIRECT_URI;
+
+  let frontendOrigin = c.env.FRONTEND_URL || '';
+  if (!frontendOrigin) {
+    const xfHost = c.req.header('x-forwarded-host') || c.req.header('host');
+    const xfProto = c.req.header('x-forwarded-proto') || 'http';
+    if (xfHost && !xfHost.includes('8787')) {
+      frontendOrigin = `${xfProto}://${xfHost}`;
+    } else {
+      frontendOrigin = 'http://localhost:3000';
+    }
+  }
+  frontendOrigin = frontendOrigin.replace(/\/+$/, '');
+
+  const redirectUri = explicitRedirectUri || `${frontendOrigin}/api/auth/google/callback`;
+
+  return { frontendOrigin, redirectUri };
+}
+
 // 2. 發起 Google OAuth 重新導向
 authRouter.get('/google', async (c) => {
   const clientId = c.env.GOOGLE_CLIENT_ID;
@@ -40,8 +62,7 @@ authRouter.get('/google', async (c) => {
     return c.json({ error: 'GOOGLE_CLIENT_ID not configured' }, 500);
   }
 
-  const origin = new URL(c.req.url).origin;
-  const redirectUri = `${origin}/api/auth/google/callback`;
+  const { redirectUri } = getOAuthInfo(c);
   const scope = encodeURIComponent('openid email profile');
   const state = Math.random().toString(36).substring(2);
 
@@ -52,18 +73,16 @@ authRouter.get('/google', async (c) => {
   return c.redirect(googleAuthUrl);
 });
 
-// 3. Google OAuth 回呼處理
-authRouter.get('/google/callback', async (c) => {
+// 3. Google OAuth 回呼處理函式
+const handleGoogleCallback = async (c: AuthContext) => {
   const code = c.req.query('code');
   const clientId = c.env.GOOGLE_CLIENT_ID;
   const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
+  const { frontendOrigin, redirectUri } = getOAuthInfo(c);
 
   if (!code || !clientId || !clientSecret) {
-    return c.redirect('/login?error=oauth_config_missing');
+    return c.redirect(`${frontendOrigin}/login?error=oauth_config_missing`);
   }
-
-  const origin = new URL(c.req.url).origin;
-  const redirectUri = `${origin}/api/auth/google/callback`;
 
   try {
     // A. 交換 Token
@@ -80,7 +99,9 @@ authRouter.get('/google/callback', async (c) => {
     });
 
     if (!tokenRes.ok) {
-      return c.redirect('/login?error=token_exchange_failed');
+      const errText = await tokenRes.text().catch(() => '');
+      console.error('[Google OAuth Token Exchange Error]', tokenRes.status, errText);
+      return c.redirect(`${frontendOrigin}/login?error=token_exchange_failed`);
     }
 
     const tokenData: any = await tokenRes.json();
@@ -92,7 +113,7 @@ authRouter.get('/google/callback', async (c) => {
     });
 
     if (!userRes.ok) {
-      return c.redirect('/login?error=userinfo_failed');
+      return c.redirect(`${frontendOrigin}/login?error=userinfo_failed`);
     }
 
     const googleUser: any = await userRes.json();
@@ -142,15 +163,18 @@ authRouter.get('/google/callback', async (c) => {
 
       // 設定 Cookie 並跳轉回首頁
       c.header('Set-Cookie', `mote_session=${sessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`);
-      return c.redirect(`/?auth_token=${sessionToken}&user_id=${userId}&user_name=${encodeURIComponent(name)}`);
+      return c.redirect(`${frontendOrigin}/?auth_token=${sessionToken}&user_id=${userId}&user_name=${encodeURIComponent(name)}`);
     }
 
-    return c.redirect('/?login=success');
+    return c.redirect(`${frontendOrigin}/?login=success`);
   } catch (err) {
     console.error('[Google OAuth Callback Error]', err);
-    return c.redirect('/login?error=oauth_internal_error');
+    return c.redirect(`${frontendOrigin}/login?error=oauth_internal_error`);
   }
-});
+};
+
+authRouter.get('/google/callback', handleGoogleCallback);
+authRouter.get('/callback', handleGoogleCallback);
 
 // 4. 安全登出
 authRouter.post('/logout', optionalAuthMiddleware, async (c) => {
