@@ -164,7 +164,7 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
               setSaveStatus('saving');
             }}
             placeholder="請輸入作文標題..."
-            className="w-full bg-transparent border-0 font-display font-bold text-lg text-text-main focus:outline-none placeholder:text-text-muted placeholder:opacity-50"
+            className="w-full bg-transparent border-0 font-display font-bold text-lg text-text-main focus:outline-none placeholder:opacity-40"
           />
         </div>
 
