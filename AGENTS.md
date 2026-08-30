@@ -60,6 +60,25 @@
 - **同步更新 Walkthrough**: 在 `walkthrough.md` 成果報告中記錄本次修改項目、架構說明與驗證結果。
 - **嚴禁隨意 Git Push**: 僅在重大里程碑完成或經由使用者明確要求時才推送。
 
+## 系統維護核心要點 (System Maintenance Directives)
+
+任何維護、除錯或新增功能時，Agent 必須強制遵守 [doc/MAINTENANCE_GUIDE.md](file:///d:/Document_J/mote/doc/MAINTENANCE_GUIDE.md) 所定義之核心要點：
+1. **訪客與會員雙軌資料隔離**:
+   - 訪客試用：資料僅存於前端 LocalStorage (`temp_*` 前綴)，調用無狀態 AI 服務，絕不上傳或污染後端 D1。
+   - 會員登入：資料存於 Cloudflare D1/R2，強制依 `user_id` 多租戶隔離。登入時由 `OfflineSyncManager` 自動將本機暫存同步至雲端並轉為永久 ID。
+2. **功能開放權限集中配置**:
+   - 所有功能開放門檻統一於 [src/config/features.ts](file:///d:/Document_J/mote/src/config/features.ts) 之 `FEATURE_CONFIG` 控制。
+   - 目前會員專屬：`essay_ai_assist` (AI 寫作修辭)、`essay_analysis` (八大面向評析)、`paper_mock_exam` (紙本模擬考)、`cloud_sync` (跨裝置同步)。
+   - 未獲授權時統一由 `<FeatureGate>` 元件攔截導引。
+3. **提示詞模組集中維護**:
+   - 所有 AI 提示詞嚴格集中於 [worker/src/prompts/](file:///d:/Document_J/mote/worker/src/prompts/) 目錄下（`interview.ts`, `reverseSearch.ts`, `assist.ts`, `analysis.ts`, `ocr.ts`），禁止在業務邏輯中散落 hardcoded 提示詞。
+4. **雙軌認證中介軟體**:
+   - `authMiddleware`（嚴格保護 / 401 拒絕）用於會員專屬端點。
+   - `optionalAuthMiddleware`（訪客友善放行 / `userId = null`）用於無狀態公開端點。
+5. **嚴禁表情符號與硬編碼色碼**:
+   - 嚴格禁止任何 Unicode Emoji。
+   - 樣式全面使用 Tailwind v4 語意化 Token（如 `bg-surface`、`text-text-main`、`bg-surface-elevated`）。
+
 ## Git Version Control & Deployment Workflow (版本控制規範)
 
 - **分支管理**: 僅使用 `main` 與 `dev` 分支，禁止建立大量長期 feature branch。

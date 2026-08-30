@@ -71,8 +71,26 @@
 
 @layer theme {
   .dark {
-    --color-primary: var(--color-primary-400);
-    --color-primary-hover: var(--color-primary-300);
+    --color-primary: #A36B42;
+    --color-primary-hover: #B87B4E;
+
+    /* Dark Mode Neutral Scale */
+    --color-neutral-50: #151311;
+    --color-neutral-100: #1E1B18;
+    --color-neutral-200: #2A2622;
+    --color-neutral-300: #38332D;
+    --color-neutral-400: #574F44;
+    --color-neutral-500: #786C58;
+    --color-neutral-600: #9E9584;
+    --color-neutral-700: #D6CFBE;
+    --color-neutral-800: #EAE4D7;
+    --color-neutral-900: #F5F2EB;
+    --color-neutral-950: #FAF8F5;
+
+    /* Dark Mode Brand Aliases */
+    --color-brand: #A36B42;
+    --color-brand-light: #2A2622;
+    --color-brand-dark: #F5F2EB;
 
     --color-page-bg: #151311;
     --color-surface: #1E1B18;
