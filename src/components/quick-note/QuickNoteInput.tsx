@@ -29,7 +29,7 @@ export const QuickNoteInput: React.FC<QuickNoteInputProps> = ({ onSave }) => {
         onChange={(e) => setContent(e.target.value)}
         placeholder="今天發生了什麼？記下一句話或一個畫面..."
         rows={2}
-        className="w-full bg-transparent border-0 text-text-main placeholder:text-text-muted/60 text-sm focus:outline-none resize-none"
+        className="w-full bg-transparent border-0 text-text-main placeholder:opacity-50 text-sm focus:outline-none resize-none"
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
             handleSubmit(e);

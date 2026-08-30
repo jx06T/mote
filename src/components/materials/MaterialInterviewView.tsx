@@ -82,7 +82,7 @@ export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-[75vh] max-h-[680px] bg-page-bg rounded-2xl overflow-hidden border border-border-subtle shadow-sm">
+    <div className="flex flex-col h-[75vh] max-h-170 bg-page-bg rounded-2xl overflow-hidden border border-border-subtle shadow-sm">
       {/* Header */}
       <div className="p-3.5 border-b border-border-subtle bg-surface flex items-center justify-between">
         <div className="flex items-center space-x-2">
@@ -91,7 +91,7 @@ export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
           </div>
           <div>
             <h3 className="text-xs font-semibold text-text-main font-display">素材深入訪談</h3>
-            <p className="text-[11px] text-text-muted truncate max-w-[220px]">
+            <p className="text-[11px] text-text-muted truncate max-w-55">
               {noteContent}
             </p>
           </div>

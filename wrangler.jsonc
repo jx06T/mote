@@ -3,7 +3,9 @@
   "name": "mote-api",
   "main": "worker/src/index.ts",
   "compatibility_date": "2024-10-22",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "vars": {
     "ENV": "development"
   },
@@ -11,7 +13,7 @@
     {
       "binding": "DB",
       "database_name": "mote-db",
-      "database_id": "local-mote-db"
+      "database_id": "48fdf066-f6d9-4b1d-8d09-885f6a4c3498"
     }
   ],
   "r2_buckets": [

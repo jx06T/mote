@@ -21,8 +21,8 @@ export const Input: React.FC<InputProps> = ({ label, error, className, id, ...pr
         id={inputId}
         className={twMerge(
           clsx(
-            'w-full px-3.5 py-2.5 bg-surface border border-border-subtle rounded-lg text-text-main placeholder:text-text-muted/60 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all',
-            error && 'border-status-danger focus:ring-status-danger/30 focus:border-status-danger',
+            'w-full px-3.5 py-2.5 bg-surface border border-border-subtle rounded-lg text-text-main placeholder:opacity-50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all',
+            error && 'border-status-danger focus:ring-status-danger/30',
             className
           )
         )}
