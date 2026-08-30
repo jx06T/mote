@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { storage } from '../services/storage';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -7,29 +9,10 @@ import { User, Shield, Moon, Sun, Download, Sparkles, LogOut, Cloud } from 'luci
 
 export const SettingsPage: React.FC = () => {
   const { isLoggedIn, currentUser, openAuthModal, logout } = useAuth();
-  const [isDark, setIsDark] = useState(
-    document.documentElement.classList.contains('dark')
-  );
-
-  const toggleTheme = () => {
-    const next = !isDark;
-    setIsDark(next);
-    if (next) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
+  const { isDark, toggleTheme } = useTheme();
 
   const handleExportData = () => {
-    const data = {
-      quickNotes: localStorage.getItem('mote_quick_notes'),
-      materials: localStorage.getItem('mote_materials'),
-      essays: localStorage.getItem('mote_essays'),
-      prompts: localStorage.getItem('mote_prompts'),
-      vocabulary: localStorage.getItem('mote_vocabulary'),
-      exportedAt: new Date().toISOString(),
-    };
+    const data = storage.exportBackup();
     const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: 'application/json',
     });

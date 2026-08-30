@@ -11,13 +11,28 @@ import {
 
 const API_BASE = '/api';
 
+function getAuthToken(): string | null {
+  return localStorage.getItem('mote_token');
+}
+
+export function isAuthenticated(): boolean {
+  return !!getAuthToken() && !!localStorage.getItem('mote_user');
+}
+
 async function fetchJSON<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers,
   });
 
   if (!res.ok) {
@@ -28,9 +43,14 @@ async function fetchJSON<T>(endpoint: string, options?: RequestInit): Promise<T>
   return await res.json();
 }
 
-// 1. Quick Notes API
+// 1. Quick Notes API (Dual Mode: LocalStorage for Guest, D1 for Authenticated)
 export const QuickNotesAPI = {
   async list(): Promise<QuickNote[]> {
+    if (!isAuthenticated()) {
+      const stored = localStorage.getItem('mote_quick_notes');
+      return stored ? JSON.parse(stored) : [];
+    }
+
     try {
       return await fetchJSON<QuickNote[]>('/quick-notes');
     } catch (err) {
@@ -41,6 +61,22 @@ export const QuickNotesAPI = {
   },
 
   async create(content: string): Promise<QuickNote> {
+    if (!isAuthenticated()) {
+      const now = Date.now();
+      const newNote: QuickNote = {
+        id: `temp_qn_${now}_${Math.random().toString(36).slice(2, 6)}`,
+        user_id: 'guest',
+        content,
+        status: 'active',
+        created_at: now,
+        updated_at: now,
+      };
+      const stored = localStorage.getItem('mote_quick_notes');
+      const existing: QuickNote[] = stored ? JSON.parse(stored) : [];
+      localStorage.setItem('mote_quick_notes', JSON.stringify([newNote, ...existing]));
+      return newNote;
+    }
+
     try {
       return await fetchJSON<QuickNote>('/quick-notes', {
         method: 'POST',
@@ -48,13 +84,14 @@ export const QuickNotesAPI = {
       });
     } catch (err) {
       console.warn('[QuickNotes Create fallback to local]', err);
+      const now = Date.now();
       const newNote: QuickNote = {
-        id: `qn_${Date.now()}`,
-        user_id: 'user_local',
+        id: `temp_qn_${now}`,
+        user_id: 'guest',
         content,
         status: 'active',
-        created_at: Date.now(),
-        updated_at: Date.now(),
+        created_at: now,
+        updated_at: now,
       };
       const existing = await QuickNotesAPI.list();
       localStorage.setItem('mote_quick_notes', JSON.stringify([newNote, ...existing]));
@@ -63,11 +100,22 @@ export const QuickNotesAPI = {
   },
 
   async delete(id: string): Promise<void> {
+    if (!isAuthenticated()) {
+      const stored = localStorage.getItem('mote_quick_notes');
+      const existing: QuickNote[] = stored ? JSON.parse(stored) : [];
+      localStorage.setItem(
+        'mote_quick_notes',
+        JSON.stringify(existing.filter((n) => n.id !== id))
+      );
+      return;
+    }
+
     try {
       await fetchJSON(`/quick-notes/${id}`, { method: 'DELETE' });
     } catch (err) {
       console.warn('[QuickNotes Delete fallback to local]', err);
-      const existing = await QuickNotesAPI.list();
+      const stored = localStorage.getItem('mote_quick_notes');
+      const existing: QuickNote[] = stored ? JSON.parse(stored) : [];
       localStorage.setItem(
         'mote_quick_notes',
         JSON.stringify(existing.filter((n) => n.id !== id))
@@ -76,9 +124,14 @@ export const QuickNotesAPI = {
   },
 };
 
-// 2. Materials API
+// 2. Materials API (Dual Mode)
 export const MaterialsAPI = {
   async list(): Promise<Material[]> {
+    if (!isAuthenticated()) {
+      const stored = localStorage.getItem('mote_materials');
+      return stored ? JSON.parse(stored) : [];
+    }
+
     try {
       return await fetchJSON<Material[]>('/materials');
     } catch (err) {
@@ -89,6 +142,11 @@ export const MaterialsAPI = {
   },
 
   async get(id: string): Promise<Material | null> {
+    if (!isAuthenticated()) {
+      const list = await MaterialsAPI.list();
+      return list.find((m) => m.id === id) || null;
+    }
+
     try {
       return await fetchJSON<Material>(`/materials/${id}`);
     } catch (err) {
@@ -99,6 +157,38 @@ export const MaterialsAPI = {
   },
 
   async save(data: Partial<Material>): Promise<Material> {
+    if (!isAuthenticated()) {
+      const now = Date.now();
+      const newMat: Material = {
+        id: data.id || `temp_mat_${now}_${Math.random().toString(36).slice(2, 6)}`,
+        user_id: 'guest',
+        title: data.title || '生活片段素材',
+        story: data.story || '',
+        people: data.people || [],
+        time: data.time || '',
+        location: data.location || '',
+        scene: data.scene || '',
+        dialogue: data.dialogue || '',
+        emotion: data.emotion || '',
+        reflection: data.reflection || '',
+        themes: data.themes || [],
+        tags: data.tags || [],
+        created_at: data.created_at || now,
+        updated_at: now,
+      };
+
+      const stored = localStorage.getItem('mote_materials');
+      const list: Material[] = stored ? JSON.parse(stored) : [];
+      const index = list.findIndex((m) => m.id === newMat.id);
+      if (index >= 0) {
+        list[index] = newMat;
+      } else {
+        list.unshift(newMat);
+      }
+      localStorage.setItem('mote_materials', JSON.stringify(list));
+      return newMat;
+    }
+
     try {
       return await fetchJSON<Material>('/materials', {
         method: 'POST',
@@ -108,8 +198,8 @@ export const MaterialsAPI = {
       console.warn('[Materials Save fallback to local]', err);
       const now = Date.now();
       const newMat: Material = {
-        id: data.id || `mat_${now}`,
-        user_id: 'user_local',
+        id: data.id || `temp_mat_${now}`,
+        user_id: 'guest',
         title: data.title || '生活片段素材',
         story: data.story || '',
         people: data.people || [],
@@ -153,7 +243,7 @@ export const MaterialsAPI = {
             story: `${noteContent}。${userAnswers}`,
             people: ['我'],
             time: '某個午後',
-            location: '校園邊緣',
+            location: '校園角落',
             scene: '光影灑落的微小片刻',
             dialogue: '簡短深刻的話語',
             emotion: '平靜與回味',
@@ -235,42 +325,74 @@ const STARTER_PROMPTS: PromptItem[] = [
 
 export const PromptsAPI = {
   async list(): Promise<PromptItem[]> {
+    if (!isAuthenticated()) {
+      const stored = localStorage.getItem('mote_prompts');
+      const custom: PromptItem[] = stored ? JSON.parse(stored) : [];
+      return [...custom, ...STARTER_PROMPTS];
+    }
+
     try {
       const res = await fetchJSON<PromptItem[]>('/prompts');
       return res && res.length > 0 ? res : STARTER_PROMPTS;
     } catch {
       const stored = localStorage.getItem('mote_prompts');
-      return stored ? JSON.parse(stored) : STARTER_PROMPTS;
+      const custom: PromptItem[] = stored ? JSON.parse(stored) : [];
+      return [...custom, ...STARTER_PROMPTS];
     }
   },
 
   async create(data: { title: string; raw_text: string; corrected_text?: string }): Promise<PromptItem> {
+    if (!isAuthenticated()) {
+      const now = Date.now();
+      const newPrompt: PromptItem = {
+        id: `temp_pr_${now}_${Math.random().toString(36).slice(2, 6)}`,
+        title: data.title,
+        raw_text: data.raw_text,
+        corrected_text: data.corrected_text || data.raw_text,
+        prompt_type: '自訂題目',
+        is_official: 0,
+        created_at: now,
+        updated_at: now,
+      };
+      const stored = localStorage.getItem('mote_prompts');
+      const existing: PromptItem[] = stored ? JSON.parse(stored) : [];
+      localStorage.setItem('mote_prompts', JSON.stringify([newPrompt, ...existing]));
+      return newPrompt;
+    }
+
     try {
       return await fetchJSON<PromptItem>('/prompts', {
         method: 'POST',
         body: JSON.stringify(data),
       });
     } catch {
+      const now = Date.now();
       const newPrompt: PromptItem = {
-        id: `pr_${Date.now()}`,
+        id: `temp_pr_${now}`,
         title: data.title,
         raw_text: data.raw_text,
         corrected_text: data.corrected_text || data.raw_text,
         prompt_type: '自訂題目',
         is_official: 0,
-        created_at: Date.now(),
-        updated_at: Date.now(),
+        created_at: now,
+        updated_at: now,
       };
-      const existing = await PromptsAPI.list();
+      const stored = localStorage.getItem('mote_prompts');
+      const existing: PromptItem[] = stored ? JSON.parse(stored) : [];
       localStorage.setItem('mote_prompts', JSON.stringify([newPrompt, ...existing]));
       return newPrompt;
     }
   },
 };
 
-// 4. Essays API
+// 4. Essays API (Dual Mode)
 export const EssaysAPI = {
   async list(): Promise<Essay[]> {
+    if (!isAuthenticated()) {
+      const stored = localStorage.getItem('mote_essays');
+      return stored ? JSON.parse(stored) : [];
+    }
+
     try {
       return await fetchJSON<Essay[]>('/essays');
     } catch {
@@ -280,6 +402,14 @@ export const EssaysAPI = {
   },
 
   async get(id: string): Promise<{ essay: Essay; operations: any[] } | null> {
+    if (!isAuthenticated()) {
+      const list = await EssaysAPI.list();
+      const item = list.find((e) => e.id === id);
+      const opsStored = localStorage.getItem(`mote_essay_ops_${id}`);
+      const operations = opsStored ? JSON.parse(opsStored) : [];
+      return item ? { essay: item, operations } : null;
+    }
+
     try {
       return await fetchJSON<{ essay: Essay; operations: any[] }>(`/essays/${id}`);
     } catch {
@@ -303,6 +433,37 @@ export const EssaysAPI = {
     operations?: any[];
   }): Promise<Essay> {
     const essayContent = data.current_content || data.content || '';
+
+    if (!isAuthenticated()) {
+      const now = Date.now();
+      const essayId = data.id || `temp_es_${now}_${Math.random().toString(36).slice(2, 6)}`;
+      const newEssay: Essay = {
+        id: essayId,
+        user_id: 'guest',
+        prompt_id: data.prompt_id || data.promptId,
+        title: data.title || '無標題作文',
+        current_content: essayContent,
+        word_count: data.word_count || essayContent.replace(/\s+/g, '').length,
+        status: (data.status as any) || 'draft',
+        created_at: now,
+        updated_at: now,
+      };
+
+      const stored = localStorage.getItem('mote_essays');
+      const list: Essay[] = stored ? JSON.parse(stored) : [];
+      const idx = list.findIndex((e) => e.id === newEssay.id);
+      if (idx >= 0) {
+        list[idx] = newEssay;
+      } else {
+        list.unshift(newEssay);
+      }
+      localStorage.setItem('mote_essays', JSON.stringify(list));
+      if (data.operations) {
+        localStorage.setItem(`mote_essay_ops_${newEssay.id}`, JSON.stringify(data.operations));
+      }
+      return newEssay;
+    }
+
     const payload = {
       id: data.id,
       title: data.title,
@@ -327,8 +488,8 @@ export const EssaysAPI = {
     } catch {
       const now = Date.now();
       const newEssay: Essay = {
-        id: data.id || `esy_${now}`,
-        user_id: 'user_local',
+        id: data.id || `temp_es_${now}`,
+        user_id: 'guest',
         prompt_id: data.prompt_id || data.promptId,
         title: data.title || '無標題作文',
         current_content: essayContent,
@@ -358,52 +519,32 @@ export const EssaysAPI = {
     action: 'metaphor' | 'imitation' | 'expand' | 'concise' | 'emotion' | 'scene',
     fullContext?: string
   ) {
-    try {
-      return await fetchJSON<{ original: string; suggestion: string; explanation: string }>(
-        '/essays/assist',
-        {
-          method: 'POST',
-          body: JSON.stringify({ selectedText, action, fullContext }),
-        }
-      );
-    } catch {
-      return {
-        original: selectedText,
-        suggestion: `${selectedText}，宛如初秋微風拂過水面，留下層層細緻的波紋。`,
-        explanation: '以自然意象加強文句的畫面感與空間層次。',
-      };
-    }
+    return await fetchJSON<{ original: string; suggestion: string; explanation: string }>(
+      '/essays/assist',
+      {
+        method: 'POST',
+        body: JSON.stringify({ selectedText, action, fullContext }),
+      }
+    );
   },
 };
 
-// 5. Mock Exams API
+// 5. Mock Exams API (Protected)
 export const ExamsAPI = {
   async list(): Promise<ExamSession[]> {
+    if (!isAuthenticated()) return [];
     try {
       return await fetchJSON<ExamSession[]>('/exams');
     } catch {
-      const stored = localStorage.getItem('mote_exams');
-      return stored ? JSON.parse(stored) : [];
+      return [];
     }
   },
 
   async start(promptId: string, durationMinutes = 50): Promise<ExamSession> {
-    try {
-      return await fetchJSON<ExamSession>('/exams/start', {
-        method: 'POST',
-        body: JSON.stringify({ promptId, durationMinutes }),
-      });
-    } catch {
-      const session: ExamSession = {
-        id: `exm_${Date.now()}`,
-        user_id: 'user_local',
-        prompt_id: promptId,
-        duration_minutes: durationMinutes,
-        started_at: Date.now(),
-        status: 'in_progress',
-      };
-      return session;
-    }
+    return await fetchJSON<ExamSession>('/exams/start', {
+      method: 'POST',
+      body: JSON.stringify({ promptId, durationMinutes }),
+    });
   },
 
   async submit(
@@ -411,72 +552,42 @@ export const ExamsAPI = {
     pages: Array<{ pageNumber: number; image: string; text?: string }>,
     finalText: string
   ): Promise<{ success: boolean; submissionId: string; analysis: EssayAnalysis }> {
-    try {
-      return await fetchJSON<{ success: boolean; submissionId: string; analysis: EssayAnalysis }>(
-        `/exams/${examId}/submit`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ pages, finalText }),
-        }
-      );
-    } catch {
-      const evalRes = await AnalysisAPI.evaluate('模擬考作答', finalText);
-      return {
-        success: true,
-        submissionId: `sub_${Date.now()}`,
-        analysis: evalRes.analysis,
-      };
-    }
+    return await fetchJSON<{ success: boolean; submissionId: string; analysis: EssayAnalysis }>(
+      `/exams/${examId}/submit`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ pages, finalText }),
+      }
+    );
   },
 };
 
-// 6. Analysis API
+// 6. Analysis API (Protected)
 export const AnalysisAPI = {
   async evaluate(title: string, content: string, promptText?: string) {
-    try {
-      return await fetchJSON<{ id: string; analysis: EssayAnalysis }>('/analysis/evaluate', {
-        method: 'POST',
-        body: JSON.stringify({ title, content, promptText }),
-      });
-    } catch {
-      return {
-        id: `ans_${Date.now()}`,
-        analysis: {
-          overallSummary: '文章能抓住生活中的具體片刻進行細膩描繪，語言自然流暢，情感真誠。',
-          scores: {
-            promptMatch: 85,
-            intentDepth: 82,
-            materialRichness: 86,
-            structure: 80,
-            description: 88,
-            language: 84,
-            emotion: 86,
-            conclusion: 78,
-          },
-          strengths: ['細節描寫生動，畫面感強', '情感真摯自然，無造作之感'],
-          weaknesses: [
-            {
-              dimension: '結尾說理',
-              issue: '結尾處說理稍顯直接，可加強餘韻與情景交融。',
-              suggestion: '嘗試以具象景物或開放式思考收尾。',
-            },
-          ],
-          nextPracticeAdvice: '下一次寫作可著重於練習段落轉折與收尾時的情景交融。',
-        },
-      };
-    }
+    return await fetchJSON<{ id: string; analysis: EssayAnalysis }>('/analysis/evaluate', {
+      method: 'POST',
+      body: JSON.stringify({ title, content, promptText }),
+    });
   },
 
   async getWeaknesses(): Promise<WeaknessItem[]> {
+    if (!isAuthenticated()) {
+      return [];
+    }
+
     try {
       return await fetchJSON<WeaknessItem[]>('/analysis/weaknesses');
     } catch {
-      const stored = localStorage.getItem('mote_weaknesses');
-      return stored ? JSON.parse(stored) : [];
+      return [];
     }
   },
 
   async getLatest(): Promise<EssayAnalysis | null> {
+    if (!isAuthenticated()) {
+      return null;
+    }
+
     try {
       return await fetchJSON<EssayAnalysis | null>('/analysis/latest');
     } catch {
@@ -485,9 +596,14 @@ export const AnalysisAPI = {
   },
 };
 
-// 7. Vocabulary API
+// 7. Vocabulary API (Dual Mode)
 export const VocabularyAPI = {
   async list(): Promise<HardCharacter[]> {
+    if (!isAuthenticated()) {
+      const stored = localStorage.getItem('mote_vocabulary');
+      return stored ? JSON.parse(stored) : [];
+    }
+
     try {
       return await fetchJSON<HardCharacter[]>('/vocabulary');
     } catch {
@@ -497,20 +613,38 @@ export const VocabularyAPI = {
   },
 
   async add(characterText: string, zhuyin?: string, sourceEssayId?: string): Promise<HardCharacter> {
+    if (!isAuthenticated()) {
+      const now = Date.now();
+      const newChar: HardCharacter = {
+        id: `temp_voc_${now}_${Math.random().toString(36).slice(2, 6)}`,
+        user_id: 'guest',
+        character_text: characterText,
+        zhuyin: zhuyin || '',
+        source_essay_id: sourceEssayId,
+        mastery_level: 1,
+        created_at: now,
+      };
+      const stored = localStorage.getItem('mote_vocabulary');
+      const existing: HardCharacter[] = stored ? JSON.parse(stored) : [];
+      localStorage.setItem('mote_vocabulary', JSON.stringify([newChar, ...existing]));
+      return newChar;
+    }
+
     try {
       return await fetchJSON<HardCharacter>('/vocabulary', {
         method: 'POST',
         body: JSON.stringify({ characterText, zhuyin, sourceEssayId }),
       });
     } catch {
+      const now = Date.now();
       const newChar: HardCharacter = {
-        id: `voc_${Date.now()}`,
-        user_id: 'user_local',
+        id: `temp_voc_${now}`,
+        user_id: 'guest',
         character_text: characterText,
         zhuyin: zhuyin || '',
         source_essay_id: sourceEssayId,
         mastery_level: 1,
-        created_at: Date.now(),
+        created_at: now,
       };
       const existing = await VocabularyAPI.list();
       localStorage.setItem('mote_vocabulary', JSON.stringify([newChar, ...existing]));

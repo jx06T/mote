@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/Button';
 import { ShieldCheck, X, Sparkles } from 'lucide-react';
+import { storage, SESSION_KEYS } from '../../services/storage';
 
 export const GuestNoticeBanner: React.FC = () => {
   const { isLoggedIn, openAuthModal } = useAuth();
   const [isDismissed, setIsDismissed] = useState(() => {
-    return sessionStorage.getItem('mote_guest_banner_dismissed') === 'true';
+    return storage.session.getString(SESSION_KEYS.GUEST_BANNER_DISMISSED) === 'true';
   });
 
   if (isLoggedIn || isDismissed) {
@@ -15,7 +16,7 @@ export const GuestNoticeBanner: React.FC = () => {
 
   const handleDismiss = () => {
     setIsDismissed(true);
-    sessionStorage.setItem('mote_guest_banner_dismissed', 'true');
+    storage.session.setString(SESSION_KEYS.GUEST_BANNER_DISMISSED, 'true');
   };
 
   return (

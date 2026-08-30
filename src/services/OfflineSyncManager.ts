@@ -1,5 +1,6 @@
 import { QuickNotesAPI, MaterialsAPI, EssaysAPI, VocabularyAPI } from './api';
 import { QuickNote, Material, Essay, HardCharacter } from '../types';
+import { storage, STORAGE_KEYS } from './storage';
 
 export interface SyncResult {
   success: boolean;
@@ -17,9 +18,8 @@ export const OfflineSyncManager = {
 
     // 1. 同步隨手筆記
     try {
-      const storedNotes = localStorage.getItem('mote_quick_notes');
-      if (storedNotes) {
-        const notes: QuickNote[] = JSON.parse(storedNotes);
+      const notes = storage.local.get<QuickNote[]>(STORAGE_KEYS.QUICK_NOTES);
+      if (notes && notes.length > 0) {
         const tempNotes = notes.filter((n) => n.id.startsWith('temp_') || n.id.startsWith('qn_'));
 
         for (const note of tempNotes) {
@@ -31,7 +31,7 @@ export const OfflineSyncManager = {
           }
         }
         // 清理本機已同步的暫存
-        localStorage.removeItem('mote_quick_notes');
+        storage.local.remove(STORAGE_KEYS.QUICK_NOTES);
       }
     } catch (err: any) {
       errors.push(`Notes: ${err.message}`);
@@ -39,9 +39,8 @@ export const OfflineSyncManager = {
 
     // 2. 同步素材卡
     try {
-      const storedMaterials = localStorage.getItem('mote_materials');
-      if (storedMaterials) {
-        const materials: Material[] = JSON.parse(storedMaterials);
+      const materials = storage.local.get<Material[]>(STORAGE_KEYS.MATERIALS);
+      if (materials && materials.length > 0) {
         const tempMaterials = materials.filter(
           (m) => m.id.startsWith('temp_') || m.id.startsWith('mat_')
         );
@@ -54,7 +53,7 @@ export const OfflineSyncManager = {
             console.warn('[Sync Material Failed]', err);
           }
         }
-        localStorage.removeItem('mote_materials');
+        storage.local.remove(STORAGE_KEYS.MATERIALS);
       }
     } catch (err: any) {
       errors.push(`Materials: ${err.message}`);
@@ -62,9 +61,8 @@ export const OfflineSyncManager = {
 
     // 3. 同步作文草稿
     try {
-      const storedEssays = localStorage.getItem('mote_essays');
-      if (storedEssays) {
-        const essays: Essay[] = JSON.parse(storedEssays);
+      const essays = storage.local.get<Essay[]>(STORAGE_KEYS.ESSAYS);
+      if (essays && essays.length > 0) {
         const tempEssays = essays.filter(
           (e) => e.id.startsWith('temp_') || e.id.startsWith('essay_')
         );
@@ -83,7 +81,7 @@ export const OfflineSyncManager = {
             console.warn('[Sync Essay Failed]', err);
           }
         }
-        localStorage.removeItem('mote_essays');
+        storage.local.remove(STORAGE_KEYS.ESSAYS);
       }
     } catch (err: any) {
       errors.push(`Essays: ${err.message}`);
@@ -91,9 +89,8 @@ export const OfflineSyncManager = {
 
     // 4. 同步生難字庫
     try {
-      const storedVocab = localStorage.getItem('mote_vocabulary');
-      if (storedVocab) {
-        const vocabList: HardCharacter[] = JSON.parse(storedVocab);
+      const vocabList = storage.local.get<HardCharacter[]>(STORAGE_KEYS.VOCABULARY);
+      if (vocabList && vocabList.length > 0) {
         const tempVocab = vocabList.filter(
           (v) => v.id.startsWith('temp_') || v.id.startsWith('hc_')
         );
@@ -106,7 +103,7 @@ export const OfflineSyncManager = {
             console.warn('[Sync Vocabulary Failed]', err);
           }
         }
-        localStorage.removeItem('mote_vocabulary');
+        storage.local.remove(STORAGE_KEYS.VOCABULARY);
       }
     } catch (err: any) {
       errors.push(`Vocabulary: ${err.message}`);
@@ -123,12 +120,6 @@ export const OfflineSyncManager = {
    * 登出時清空本機暫存與快取
    */
   clearOfflineData() {
-    localStorage.removeItem('mote_quick_notes');
-    localStorage.removeItem('mote_materials');
-    localStorage.removeItem('mote_essays');
-    localStorage.removeItem('mote_vocabulary');
-    localStorage.removeItem('mote_prompts');
-    localStorage.removeItem('mote_exams');
-    localStorage.removeItem('mote_weaknesses');
+    storage.clearGuestData();
   },
 };

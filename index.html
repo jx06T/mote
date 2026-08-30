@@ -18,6 +18,30 @@
     <meta name="theme-color" content="#FAF8F5" />
 
     <title>Mote — 高中生 AI 作文訓練工具</title>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('mote_theme');
+          var isDark = false;
+          if (theme === 'dark') {
+            isDark = true;
+          } else if (theme === 'system') {
+            isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          } else if (!theme) {
+            var prefs = localStorage.getItem('mote_preferences');
+            if (prefs) {
+              var parsed = JSON.parse(prefs);
+              if (parsed && parsed.darkMode) isDark = true;
+            }
+          }
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', '#1A1815');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body class="bg-page-bg text-text-main antialiased select-none">
     <div id="root"></div>

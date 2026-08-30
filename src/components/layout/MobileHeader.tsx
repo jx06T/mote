@@ -1,26 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Moon, Sun, User, Sparkles } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
+import { Moon, Sun, Sparkles } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 export const MobileHeader: React.FC<{ title?: string }> = ({ title = 'Mote' }) => {
   const { isLoggedIn, openAuthModal } = useAuth();
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    const dark = document.documentElement.classList.contains('dark');
-    setIsDark(dark);
-  }, []);
-
-  const toggleTheme = () => {
-    const next = !isDark;
-    setIsDark(next);
-    if (next) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
+  const { isDark, toggleTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-30 bg-surface/90 backdrop-blur-md border-b border-border-subtle px-4 h-13 flex items-center justify-between">

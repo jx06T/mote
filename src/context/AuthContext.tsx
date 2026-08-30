@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { User } from '../types';
 import { canAccessFeature, FeatureKey } from '../config/features';
 import { OfflineSyncManager } from '../services/OfflineSyncManager';
+import { storage, STORAGE_KEYS } from '../services/storage';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -18,8 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('mote_user');
-    return saved ? JSON.parse(saved) : null;
+    return storage.local.get<User>(STORAGE_KEYS.USER);
   });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
@@ -28,8 +28,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback((user: User, token: string) => {
     setCurrentUser(user);
-    localStorage.setItem('mote_user', JSON.stringify(user));
-    localStorage.setItem('mote_token', token);
+    storage.local.set(STORAGE_KEYS.USER, user);
+    storage.local.setString(STORAGE_KEYS.TOKEN, token);
     // 自動在背景將本機暫存同步至雲端
     OfflineSyncManager.syncToCloud().catch((err) => {
       console.warn('[Auto Sync After Login Warning]', err);
@@ -43,8 +43,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Ignore network errors
     }
     setCurrentUser(null);
-    localStorage.removeItem('mote_user');
-    localStorage.removeItem('mote_token');
+    storage.local.remove(STORAGE_KEYS.USER);
+    storage.local.remove(STORAGE_KEYS.TOKEN);
     OfflineSyncManager.clearOfflineData();
   }, []);
 
@@ -83,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // 2. 驗證現有 Token 是否有效
   useEffect(() => {
-    const token = localStorage.getItem('mote_token');
+    const token = storage.local.getString(STORAGE_KEYS.TOKEN);
     if (token && currentUser) {
       fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` },
@@ -92,8 +92,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!res.ok) {
             // Token 失效，轉為訪客身分
             setCurrentUser(null);
-            localStorage.removeItem('mote_user');
-            localStorage.removeItem('mote_token');
+            storage.local.remove(STORAGE_KEYS.USER);
+            storage.local.remove(STORAGE_KEYS.TOKEN);
           }
         })
         .catch(() => {
