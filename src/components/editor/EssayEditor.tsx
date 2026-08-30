@@ -61,10 +61,10 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
       }),
     ],
     content: initialContent || '<p></p>',
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor }: any) => {
       setSaveStatus('saving');
     },
-    onSelectionUpdate: ({ editor }) => {
+    onSelectionUpdate: ({ editor }: any) => {
       const { from, to } = editor.state.selection;
       if (from !== to) {
         const text = editor.state.doc.textBetween(from, to, ' ');
@@ -164,7 +164,7 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
               setSaveStatus('saving');
             }}
             placeholder="請輸入作文標題..."
-            className="w-full bg-transparent border-0 font-display font-bold text-lg text-text-main focus:outline-none placeholder:text-text-muted/50"
+            className="w-full bg-transparent border-0 font-display font-bold text-lg text-text-main focus:outline-none placeholder:text-text-muted placeholder:opacity-50"
           />
         </div>
 
@@ -206,7 +206,7 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
 
       {/* Main Tiptap Writing Sheet */}
       <div className="flex-1 px-4 py-6 max-w-3xl w-full mx-auto overflow-y-auto no-scrollbar">
-        <div className="min-h-[500px] bg-surface rounded-2xl p-6 sm:p-10 border border-border-subtle shadow-xs">
+        <div className="min-h-125 bg-surface rounded-2xl p-6 sm:p-10 border border-border-subtle shadow-xs">
           <EditorContent editor={editor} />
         </div>
       </div>

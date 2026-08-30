@@ -5,7 +5,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
-    "types": ["@cloudflare/workers-types"],
+    "types": ["@cloudflare/workers-types", "node"],
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": false,
     "resolveJsonModule": true,
@@ -22,5 +22,5 @@
       "@worker/*": ["./worker/src/*"]
     }
   },
-  "include": ["src", "worker/src"]
+  "include": ["src", "worker/src", "vite.config.ts"]
 }

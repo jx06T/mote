@@ -52,7 +52,7 @@ export const RevisionTimeline: React.FC<RevisionTimelineProps> = ({ operations }
       <div className="relative pl-4 border-l-2 border-border-subtle space-y-4">
         {operations.map((op, idx) => (
           <div key={op.id || idx} className="relative group">
-            <div className="absolute -left-[21px] top-0.5 w-4 h-4 rounded-full bg-surface border border-border-subtle flex items-center justify-center shadow-xs">
+            <div className="absolute -left-5.25 top-0.5 w-4 h-4 rounded-full bg-surface border border-border-subtle flex items-center justify-center shadow-xs">
               {getOpIcon(op.operation_type)}
             </div>
             <div>

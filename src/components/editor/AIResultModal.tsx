@@ -35,7 +35,7 @@ export const AIResultModal: React.FC<AIResultModalProps> = ({
 
         {/* AI Suggested Sentence */}
         <div>
-          <span className="block text-xs font-semibold text-primary mb-1 flex items-center">
+          <span className="flex items-center text-xs font-semibold text-primary mb-1">
             <Sparkles className="w-3.5 h-3.5 mr-1" />
             建議修飾：
           </span>
