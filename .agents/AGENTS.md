@@ -33,6 +33,7 @@
   2. **PWA 與 Service Worker 快取/防滾動**: 涉及 `sw.js` 快取策略、PWA 熱更新機制、Viewport meta、全域防滾動時，必須參考並遵循 [.agents/skills/pwa-sw-scroll/SKILL.md](file:///d:/Document_J/mote/.agents/skills/pwa-sw-scroll/SKILL.md)。
   3. **Tailwind v4 色彩系統**: 涉及樣式建立、Token 定義、Dark Mode 或 UI 樣式時，必須參考並遵循 [.agents/skills/tailwind-color-system/SKILL.md](file:///d:/Document_J/mote/.agents/skills/tailwind-color-system/SKILL.md)，**嚴格禁止硬編碼色碼**。
   4. **手寫繪圖與筆跡處理**: 涉及 Canvas 繪圖、Apple Pencil 壓感、防誤觸、向量筆跡儲存 (DrawData) 時，必須參考並遵循 [.agents/skills/apple-pencil-drawing/SKILL.md](file:///d:/Document_J/mote/.agents/skills/apple-pencil-drawing/SKILL.md)。
+  5. **訪客與會員權限分離與無縫同步**: 涉及訪客試用、本機與雲端雙軌存取、頂部提示橫幅 (`GuestNoticeBanner`)、登入同步 (`OfflineSyncManager`) 時，必須參考並遵循 [.agents/skills/auth-guest-permissions/SKILL.md](file:///d:/Document_J/mote/.agents/skills/auth-guest-permissions/SKILL.md)。
 
 ## Git Version Control & Deployment Workflow (版本控制與部署規範)
 
