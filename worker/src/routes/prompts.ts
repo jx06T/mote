@@ -1,11 +1,9 @@
 import { Hono } from 'hono';
 import { Bindings, Variables } from '../types';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import { AIService } from '../services/ai/gemini';
 
 export const promptsRouter = new Hono<{ Bindings: Bindings; Variables: Variables }>();
-
-promptsRouter.use('*', authMiddleware);
 
 // Standard starter prompts for Chinese essay training
 const DEFAULT_STARTER_PROMPTS = [
@@ -36,10 +34,10 @@ const DEFAULT_STARTER_PROMPTS = [
 ];
 
 // 1. List prompts (User's custom prompts + official starter templates)
-promptsRouter.get('/', async (c) => {
+promptsRouter.get('/', optionalAuthMiddleware, async (c) => {
   const userId = c.get('userId');
 
-  if (!c.env.DB) {
+  if (!userId || !c.env.DB) {
     return c.json(DEFAULT_STARTER_PROMPTS);
   }
 
@@ -51,15 +49,6 @@ promptsRouter.get('/', async (c) => {
       .all();
 
     if (!results || results.length === 0) {
-      // Seed starter prompts into DB for this user
-      for (const sp of DEFAULT_STARTER_PROMPTS) {
-        await c.env.DB.prepare(`
-          INSERT OR IGNORE INTO prompts (id, user_id, title, raw_text, corrected_text, prompt_type, is_official, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
-        `)
-          .bind(sp.id, userId, sp.title, sp.raw_text, sp.corrected_text, sp.prompt_type, Date.now(), Date.now())
-          .run();
-      }
       return c.json(DEFAULT_STARTER_PROMPTS);
     }
 
@@ -70,8 +59,8 @@ promptsRouter.get('/', async (c) => {
   }
 });
 
-// 2. Create custom prompt
-promptsRouter.post('/', async (c) => {
+// 2. Create custom prompt (Members only on cloud D1)
+promptsRouter.post('/', authMiddleware, async (c) => {
   const userId = c.get('userId');
   const body = await c.req.json();
   const title = (body.title || '自訂題目').trim();
@@ -114,7 +103,7 @@ promptsRouter.post('/', async (c) => {
 });
 
 // 3. Prompt OCR Extraction
-promptsRouter.post('/ocr', async (c) => {
+promptsRouter.post('/ocr', optionalAuthMiddleware, async (c) => {
   const body = await c.req.json();
   const imageBase64 = body.image || '';
 

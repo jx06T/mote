@@ -1,14 +1,16 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { ShieldCheck, Sparkles, BookOpen, PenTool, Award } from 'lucide-react';
+import { BookOpen, PenTool, Award, ArrowRight } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
 
   const handleGoogleLogin = () => {
-    // Navigate straight to dashboard in demo / dev mode
+    window.location.href = '/api/auth/google';
+  };
+
+  const handleGuestTrial = () => {
     navigate('/');
   };
 
@@ -70,7 +72,14 @@ export const LoginPage: React.FC = () => {
             </svg>
             <span>使用 Google 帳號登入</span>
           </button>
-          <p className="text-[11px] text-text-muted">唯一支援 Google Account 安全登入</p>
+          
+          <button
+            onClick={handleGuestTrial}
+            className="text-xs text-text-muted hover:text-text-main flex items-center justify-center mx-auto space-x-1 py-1 transition-colors"
+          >
+            <span>以本機訪客模式試用</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       </Card>
     </div>

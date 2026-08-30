@@ -1,15 +1,13 @@
 import { Hono } from 'hono';
 import { Bindings, Variables } from '../types';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 
 export const vocabularyRouter = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
-vocabularyRouter.use('*', authMiddleware);
-
-// 1. List hard characters
-vocabularyRouter.get('/', async (c) => {
+// 1. List hard characters (Members get D1 data, Guests receive [])
+vocabularyRouter.get('/', optionalAuthMiddleware, async (c) => {
   const userId = c.get('userId');
-  if (!c.env.DB) {
+  if (!userId || !c.env.DB) {
     return c.json([]);
   }
 
@@ -27,8 +25,8 @@ vocabularyRouter.get('/', async (c) => {
   }
 });
 
-// 2. Add hard character
-vocabularyRouter.post('/', async (c) => {
+// 2. Add hard character (Members only on cloud D1)
+vocabularyRouter.post('/', authMiddleware, async (c) => {
   const userId = c.get('userId');
   const body = await c.req.json<{ characterText: string; zhuyin?: string; sourceEssayId?: string }>();
   const charText = (body.characterText || '').trim();
@@ -63,8 +61,8 @@ vocabularyRouter.post('/', async (c) => {
   });
 });
 
-// 3. Delete hard character
-vocabularyRouter.delete('/:id', async (c) => {
+// 3. Delete hard character (Members only on cloud D1)
+vocabularyRouter.delete('/:id', authMiddleware, async (c) => {
   const id = c.req.param('id');
   const userId = c.get('userId');
 

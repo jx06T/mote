@@ -1,14 +1,12 @@
 import { Hono } from 'hono';
 import { Bindings, Variables } from '../types';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import { AIService } from '../services/ai/gemini';
 
 export const analysisRouter = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
-analysisRouter.use('*', authMiddleware);
-
-// 1. Analyze essay or exam submission
-analysisRouter.post('/evaluate', async (c) => {
+// 1. Analyze essay or exam submission (Member-only Feature)
+analysisRouter.post('/evaluate', authMiddleware, async (c) => {
   const userId = c.get('userId');
   const body = await c.req.json<{
     essayId?: string;
@@ -84,10 +82,10 @@ analysisRouter.post('/evaluate', async (c) => {
   return c.json({ id, analysis: result });
 });
 
-// 2. Get user overall weakness report & trends
-analysisRouter.get('/weaknesses', async (c) => {
+// 2. Get user overall weakness report & trends (Members get D1 data, Guests receive [])
+analysisRouter.get('/weaknesses', optionalAuthMiddleware, async (c) => {
   const userId = c.get('userId');
-  if (!c.env.DB) {
+  if (!userId || !c.env.DB) {
     return c.json([]);
   }
 
@@ -105,10 +103,10 @@ analysisRouter.get('/weaknesses', async (c) => {
   }
 });
 
-// 3. Get latest analysis report
-analysisRouter.get('/latest', async (c) => {
+// 3. Get latest analysis report (Members get D1 data, Guests receive null)
+analysisRouter.get('/latest', optionalAuthMiddleware, async (c) => {
   const userId = c.get('userId');
-  if (!c.env.DB) {
+  if (!userId || !c.env.DB) {
     return c.json(null);
   }
 

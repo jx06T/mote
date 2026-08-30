@@ -1,75 +1,112 @@
 import { Context, Next } from 'hono';
 import { Bindings, Variables } from '../types';
 
-export async function authMiddleware(c: Context<{ Bindings: Bindings; Variables: Variables }>, next: Next) {
+/**
+ * 從請求中解析 Token (Bearer 標頭或 Cookie)
+ */
+function extractToken(c: Context<{ Bindings: Bindings; Variables: Variables }>): string {
   const authHeader = c.req.header('Authorization');
-  const cookieHeader = c.req.header('Cookie');
-
-  // Check Bearer token or session cookie
-  let token = '';
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.substring(7);
-  } else if (cookieHeader) {
+    return authHeader.substring(7).trim();
+  }
+
+  const cookieHeader = c.req.header('Cookie');
+  if (cookieHeader) {
     const match = cookieHeader.match(/mote_session=([^;]+)/);
-    if (match) token = match[1];
+    if (match) return match[1].trim();
   }
 
-  // Helper to ensure demo user exists in D1 database
-  const ensureDemoUserExists = async () => {
-    if (c.env.DB) {
-      try {
-        await c.env.DB.prepare(`
-          INSERT OR IGNORE INTO users (id, google_id, email, name, avatar_url, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `)
-          .bind(
-            'user_demo_student',
-            'google_demo_student_id',
-            'student@mote.app',
-            '高中學員',
-            '',
-            Date.now(),
-            Date.now()
-          )
-          .run();
-      } catch (err) {
-        console.warn('[Ensure Demo User Warning]', err);
-      }
-    }
-  };
+  return '';
+}
 
-  // If in dev mode or demo token, provide fallback demo user
-  if (!token || token === 'demo_token' || token === 'dev_token') {
-    c.set('userId', 'user_demo_student');
-    c.set('userEmail', 'student@mote.app');
-    await ensureDemoUserExists();
-    await next();
-    return;
+/**
+ * 嚴格認證中介軟體 (Strict Auth Middleware)
+ * 適用於會員專屬端點 (寫作輔助、模擬考、評析報告、雲端持久儲存)
+ * 若未提供有效 Token 或 Session 過期，立即回傳 HTTP 401
+ */
+export async function authMiddleware(
+  c: Context<{ Bindings: Bindings; Variables: Variables }>,
+  next: Next
+) {
+  const token = extractToken(c);
+
+  if (!token) {
+    return c.json(
+      {
+        status: 'error',
+        error: 'Unauthorized',
+        message: '未提供有效之授權憑證，請先登入 Google 帳號',
+      },
+      401
+    );
   }
 
-  // Verify against D1 session if DB is bound
-  try {
-    if (c.env.DB) {
+  if (c.env.DB) {
+    try {
       const session = await c.env.DB.prepare(
-        'SELECT user_id, expires_at FROM sessions WHERE token_hash = ?'
+        `SELECT s.user_id, s.expires_at, u.email, u.name 
+         FROM sessions s 
+         JOIN users u ON s.user_id = u.id 
+         WHERE s.token_hash = ?`
       )
         .bind(token)
-        .first<{ user_id: string; expires_at: number }>();
+        .first<{ user_id: string; expires_at: number; email: string; name: string }>();
 
       if (session && session.expires_at > Date.now()) {
         c.set('userId', session.user_id);
-        c.set('userEmail', null);
+        c.set('userEmail', session.email);
         await next();
         return;
       }
+    } catch (err) {
+      console.error('[Auth Middleware DB Error]', err);
     }
-  } catch (err) {
-    console.warn('[Auth Middleware Warning]', err);
   }
 
-  // Fallback for seamless demo
-  c.set('userId', 'user_demo_student');
-  c.set('userEmail', 'student@mote.app');
-  await ensureDemoUserExists();
+  return c.json(
+    {
+      status: 'error',
+      error: 'Unauthorized',
+      message: '授權憑證無效或登入已過期，請重新登入',
+    },
+    401
+  );
+}
+
+/**
+ * 可選認證中介軟體 (Optional Auth Middleware)
+ * 適用於訪客與會員皆可存取之公開/試用端點 (素材訪談無狀態生成、公開題目清單、反向推薦)
+ * 若有有效 Token 則注入 userId，若無則注入 null，不阻擋請求
+ */
+export async function optionalAuthMiddleware(
+  c: Context<{ Bindings: Bindings; Variables: Variables }>,
+  next: Next
+) {
+  const token = extractToken(c);
+
+  if (token && c.env.DB) {
+    try {
+      const session = await c.env.DB.prepare(
+        `SELECT s.user_id, s.expires_at, u.email, u.name 
+         FROM sessions s 
+         JOIN users u ON s.user_id = u.id 
+         WHERE s.token_hash = ?`
+      )
+        .bind(token)
+        .first<{ user_id: string; expires_at: number; email: string; name: string }>();
+
+      if (session && session.expires_at > Date.now()) {
+        c.set('userId', session.user_id);
+        c.set('userEmail', session.email);
+        await next();
+        return;
+      }
+    } catch (err) {
+      console.warn('[Optional Auth DB Warning]', err);
+    }
+  }
+
+  c.set('userId', null as any);
+  c.set('userEmail', null as any);
   await next();
 }

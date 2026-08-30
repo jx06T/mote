@@ -1,16 +1,14 @@
 import { Hono } from 'hono';
 import { Bindings, Variables } from '../types';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 
 export const quickNotesRouter = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
-quickNotesRouter.use('*', authMiddleware);
-
-// 1. List all quick notes for the authenticated user
-quickNotesRouter.get('/', async (c) => {
+// 1. List all quick notes for the authenticated user (or return [] for guests)
+quickNotesRouter.get('/', optionalAuthMiddleware, async (c) => {
   const userId = c.get('userId');
 
-  if (!c.env.DB) {
+  if (!userId || !c.env.DB) {
     return c.json([]);
   }
 
@@ -28,8 +26,8 @@ quickNotesRouter.get('/', async (c) => {
   }
 });
 
-// 2. Create a new quick note
-quickNotesRouter.post('/', async (c) => {
+// 2. Create a new quick note (Members only on cloud D1)
+quickNotesRouter.post('/', authMiddleware, async (c) => {
   const userId = c.get('userId');
   const body = await c.req.json();
   const content = (body.content || '').trim();
@@ -48,7 +46,7 @@ quickNotesRouter.post('/', async (c) => {
   try {
     await c.env.DB.prepare(`
       INSERT INTO quick_notes (id, user_id, content, status, created_at, updated_at)
-      VALUES (?, ?, ?, 'pending', ?, ?)
+      VALUES (?, ?, ?, 'active', ?, ?)
     `)
       .bind(id, userId, content, now, now)
       .run();
@@ -57,7 +55,7 @@ quickNotesRouter.post('/', async (c) => {
       id,
       user_id: userId,
       content,
-      status: 'pending',
+      status: 'active',
       created_at: now,
       updated_at: now,
     });
@@ -67,8 +65,8 @@ quickNotesRouter.post('/', async (c) => {
   }
 });
 
-// 3. Delete a quick note
-quickNotesRouter.delete('/:id', async (c) => {
+// 3. Delete a quick note (Members only on cloud D1)
+quickNotesRouter.delete('/:id', authMiddleware, async (c) => {
   const id = c.req.param('id');
   const userId = c.get('userId');
 

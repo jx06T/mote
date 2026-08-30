@@ -215,7 +215,3 @@ CREATE TABLE IF NOT EXISTS ai_usage (
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- 初始化本機與展示預設使用者 (Default Student)
-INSERT OR IGNORE INTO users (id, google_id, email, name, avatar_url, created_at, updated_at)
-VALUES ('user_demo_student', 'google_demo_student_id', 'student@mote.app', '高中學員', '', 1700000000000, 1700000000000);
-

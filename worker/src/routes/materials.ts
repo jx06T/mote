@@ -1,16 +1,14 @@
 import { Hono } from 'hono';
 import { Bindings, Variables } from '../types';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import { AIService } from '../services/ai/gemini';
 
 export const materialsRouter = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
-materialsRouter.use('*', authMiddleware);
-
-// 1. List materials
-materialsRouter.get('/', async (c) => {
+// 1. List materials (Members from D1, Guests receive [])
+materialsRouter.get('/', optionalAuthMiddleware, async (c) => {
   const userId = c.get('userId');
-  if (!c.env.DB) {
+  if (!userId || !c.env.DB) {
     return c.json([]);
   }
 
@@ -36,12 +34,12 @@ materialsRouter.get('/', async (c) => {
 });
 
 // 2. Get single material
-materialsRouter.get('/:id', async (c) => {
+materialsRouter.get('/:id', optionalAuthMiddleware, async (c) => {
   const id = c.req.param('id');
   const userId = c.get('userId');
 
-  if (!c.env.DB) {
-    return c.json({ error: 'Database binding not configured' }, 500);
+  if (!userId || !c.env.DB) {
+    return c.json({ error: 'Material not found' }, 404);
   }
 
   try {
@@ -63,51 +61,75 @@ materialsRouter.get('/:id', async (c) => {
     });
   } catch (err) {
     console.error('[D1 Get Material Error]', err);
-    return c.json({ error: 'Failed to retrieve material' }, 500);
+    return c.json({ error: 'Failed to fetch material' }, 500);
   }
 });
 
-// 3. Create or update material
-materialsRouter.post('/', async (c) => {
+// 3. Create or update material (Members only on cloud D1)
+materialsRouter.post('/', authMiddleware, async (c) => {
   const userId = c.get('userId');
   const body = await c.req.json();
+
   const id = body.id || `mat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   const now = Date.now();
 
   const title = body.title || '無標題素材';
   const story = body.story || '';
-  const peopleJson = JSON.stringify(body.people || []);
   const timeDesc = body.time || body.time_desc || '';
   const locationDesc = body.location || body.location_desc || '';
   const sceneDesc = body.scene || body.scene_desc || '';
   const dialogueDesc = body.dialogue || body.dialogue_desc || '';
   const emotionDesc = body.emotion || body.emotion_desc || '';
   const reflectionDesc = body.reflection || body.reflection_desc || '';
-  const themesJson = JSON.stringify(body.themes || []);
-  const tagsJson = JSON.stringify(body.tags || []);
   const sourceNoteId = body.source_quick_note_id || null;
 
-  if (c.env.DB) {
-    try {
+  const peopleJson = JSON.stringify(body.people || []);
+  const themesJson = JSON.stringify(body.themes || []);
+  const tagsJson = JSON.stringify(body.tags || []);
+
+  if (!c.env.DB) {
+    return c.json({ error: 'Database binding not configured' }, 500);
+  }
+
+  try {
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM materials WHERE id = ? AND user_id = ?'
+    )
+      .bind(id, userId)
+      .first();
+
+    if (existing) {
+      await c.env.DB.prepare(`
+        UPDATE materials SET
+          title = ?, story = ?, people_json = ?, time_desc = ?, location_desc = ?,
+          scene_desc = ?, dialogue_desc = ?, emotion_desc = ?, reflection_desc = ?,
+          themes_json = ?, tags_json = ?, updated_at = ?
+        WHERE id = ? AND user_id = ?
+      `)
+        .bind(
+          title,
+          story,
+          peopleJson,
+          timeDesc,
+          locationDesc,
+          sceneDesc,
+          dialogueDesc,
+          emotionDesc,
+          reflectionDesc,
+          themesJson,
+          tagsJson,
+          now,
+          id,
+          userId
+        )
+        .run();
+    } else {
       await c.env.DB.prepare(`
         INSERT INTO materials (
           id, user_id, title, story, people_json, time_desc, location_desc,
           scene_desc, dialogue_desc, emotion_desc, reflection_desc,
           themes_json, tags_json, source_quick_note_id, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          title = excluded.title,
-          story = excluded.story,
-          people_json = excluded.people_json,
-          time_desc = excluded.time_desc,
-          location_desc = excluded.location_desc,
-          scene_desc = excluded.scene_desc,
-          dialogue_desc = excluded.dialogue_desc,
-          emotion_desc = excluded.emotion_desc,
-          reflection_desc = excluded.reflection_desc,
-          themes_json = excluded.themes_json,
-          tags_json = excluded.tags_json,
-          updated_at = excluded.updated_at
       `)
         .bind(
           id,
@@ -128,10 +150,10 @@ materialsRouter.post('/', async (c) => {
           now
         )
         .run();
-    } catch (err) {
-      console.error('[D1 Save Material Error]', err);
-      return c.json({ error: 'Failed to save material to database' }, 500);
     }
+  } catch (err) {
+    console.error('[D1 Save Material Error]', err);
+    return c.json({ error: 'Failed to save material' }, 500);
   }
 
   return c.json({
@@ -160,8 +182,8 @@ materialsRouter.post('/', async (c) => {
   });
 });
 
-// 4. Delete material
-materialsRouter.delete('/:id', async (c) => {
+// 4. Delete material (Members only on cloud D1)
+materialsRouter.delete('/:id', authMiddleware, async (c) => {
   const id = c.req.param('id');
   const userId = c.get('userId');
 
@@ -179,8 +201,8 @@ materialsRouter.delete('/:id', async (c) => {
   return c.json({ success: true });
 });
 
-// 5. Material Interview (AI-guided deepening)
-materialsRouter.post('/interview', async (c) => {
+// 5. Material Interview (AI-guided deepening - Guests & Members)
+materialsRouter.post('/interview', optionalAuthMiddleware, async (c) => {
   const body = await c.req.json();
   const noteContent = body.noteContent || '';
   const history = body.history || [];
@@ -197,14 +219,14 @@ materialsRouter.post('/interview', async (c) => {
   return c.json({ nextQuestion });
 });
 
-// 6. Reverse Search (Match materials with prompt)
-materialsRouter.post('/reverse-search', async (c) => {
+// 6. Reverse Search (Match materials with prompt - Guests & Members)
+materialsRouter.post('/reverse-search', optionalAuthMiddleware, async (c) => {
   const userId = c.get('userId');
   const body = await c.req.json();
   const promptText = body.promptText || '';
 
-  let materialsList: any[] = [];
-  if (c.env.DB) {
+  let materialsList: any[] = body.materials || [];
+  if (userId && c.env.DB) {
     try {
       const { results } = await c.env.DB.prepare(
         'SELECT * FROM materials WHERE user_id = ? ORDER BY created_at DESC'

@@ -13,33 +13,9 @@ export const AuthModal: React.FC = () => {
 
   if (!isAuthModalOpen) return null;
 
-  const handleGoogleLogin = async () => {
-    // 模擬 Google OAuth 授權完成 (或跳轉至後端 Google OAuth 端點)
-    try {
-      const demoUser = {
-        id: `user_${Date.now()}`,
-        email: 'student@mote.app',
-        name: '高中學員 (Google 已登入)',
-        avatarUrl: '',
-      };
-      const token = `mote_jwt_${Date.now()}`;
-
-      login(demoUser, token);
-      closeAuthModal();
-
-      showToast('info', '登入成功！正在將本機暫存素材與作文同步至雲端...');
-
-      // 觸發自動無縫同步
-      const syncResult = await OfflineSyncManager.syncToCloud();
-      if (syncResult.syncedCount > 0) {
-        showToast('success', `已成功將 ${syncResult.syncedCount} 筆本機素材與作文遷移至個人雲端！`);
-      } else {
-        showToast('success', '雲端空間已就緒，所有功能已解鎖！');
-      }
-    } catch (err) {
-      console.error('[Login / Sync Error]', err);
-      showToast('error', '登入同步過程中發生異常，請重試。');
-    }
+  const handleGoogleLogin = () => {
+    // 發起正式 Google OAuth 登入流程
+    window.location.href = '/api/auth/google';
   };
 
   const comparisonItems = [
