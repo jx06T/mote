@@ -8,15 +8,16 @@ import {
   HardCharacter,
   ExamSession,
 } from '../types';
+import { storage, STORAGE_KEYS } from './storage';
 
 const API_BASE = '/api';
 
 function getAuthToken(): string | null {
-  return localStorage.getItem('mote_token');
+  return storage.local.getString(STORAGE_KEYS.TOKEN);
 }
 
 export function isAuthenticated(): boolean {
-  return !!getAuthToken() && !!localStorage.getItem('mote_user');
+  return !!getAuthToken() && !!storage.local.get(STORAGE_KEYS.USER);
 }
 
 async function fetchJSON<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -47,16 +48,14 @@ async function fetchJSON<T>(endpoint: string, options?: RequestInit): Promise<T>
 export const QuickNotesAPI = {
   async list(): Promise<QuickNote[]> {
     if (!isAuthenticated()) {
-      const stored = localStorage.getItem('mote_quick_notes');
-      return stored ? JSON.parse(stored) : [];
+      return storage.local.get<QuickNote[]>(STORAGE_KEYS.QUICK_NOTES, []) || [];
     }
 
     try {
       return await fetchJSON<QuickNote[]>('/quick-notes');
     } catch (err) {
       console.warn('[QuickNotes API fallback to local]', err);
-      const stored = localStorage.getItem('mote_quick_notes');
-      return stored ? JSON.parse(stored) : [];
+      return storage.local.get<QuickNote[]>(STORAGE_KEYS.QUICK_NOTES, []) || [];
     }
   },
 
@@ -71,9 +70,8 @@ export const QuickNotesAPI = {
         created_at: now,
         updated_at: now,
       };
-      const stored = localStorage.getItem('mote_quick_notes');
-      const existing: QuickNote[] = stored ? JSON.parse(stored) : [];
-      localStorage.setItem('mote_quick_notes', JSON.stringify([newNote, ...existing]));
+      const existing = storage.local.get<QuickNote[]>(STORAGE_KEYS.QUICK_NOTES, []) || [];
+      storage.local.set(STORAGE_KEYS.QUICK_NOTES, [newNote, ...existing]);
       return newNote;
     }
 
@@ -94,18 +92,17 @@ export const QuickNotesAPI = {
         updated_at: now,
       };
       const existing = await QuickNotesAPI.list();
-      localStorage.setItem('mote_quick_notes', JSON.stringify([newNote, ...existing]));
+      storage.local.set(STORAGE_KEYS.QUICK_NOTES, [newNote, ...existing]);
       return newNote;
     }
   },
 
   async delete(id: string): Promise<void> {
     if (!isAuthenticated()) {
-      const stored = localStorage.getItem('mote_quick_notes');
-      const existing: QuickNote[] = stored ? JSON.parse(stored) : [];
-      localStorage.setItem(
-        'mote_quick_notes',
-        JSON.stringify(existing.filter((n) => n.id !== id))
+      const existing = storage.local.get<QuickNote[]>(STORAGE_KEYS.QUICK_NOTES, []) || [];
+      storage.local.set(
+        STORAGE_KEYS.QUICK_NOTES,
+        existing.filter((n) => n.id !== id)
       );
       return;
     }
@@ -114,11 +111,10 @@ export const QuickNotesAPI = {
       await fetchJSON(`/quick-notes/${id}`, { method: 'DELETE' });
     } catch (err) {
       console.warn('[QuickNotes Delete fallback to local]', err);
-      const stored = localStorage.getItem('mote_quick_notes');
-      const existing: QuickNote[] = stored ? JSON.parse(stored) : [];
-      localStorage.setItem(
-        'mote_quick_notes',
-        JSON.stringify(existing.filter((n) => n.id !== id))
+      const existing = storage.local.get<QuickNote[]>(STORAGE_KEYS.QUICK_NOTES, []) || [];
+      storage.local.set(
+        STORAGE_KEYS.QUICK_NOTES,
+        existing.filter((n) => n.id !== id)
       );
     }
   },
@@ -128,16 +124,14 @@ export const QuickNotesAPI = {
 export const MaterialsAPI = {
   async list(): Promise<Material[]> {
     if (!isAuthenticated()) {
-      const stored = localStorage.getItem('mote_materials');
-      return stored ? JSON.parse(stored) : [];
+      return storage.local.get<Material[]>(STORAGE_KEYS.MATERIALS, []) || [];
     }
 
     try {
       return await fetchJSON<Material[]>('/materials');
     } catch (err) {
       console.warn('[Materials API fallback to local]', err);
-      const stored = localStorage.getItem('mote_materials');
-      return stored ? JSON.parse(stored) : [];
+      return storage.local.get<Material[]>(STORAGE_KEYS.MATERIALS, []) || [];
     }
   },
 
@@ -177,15 +171,14 @@ export const MaterialsAPI = {
         updated_at: now,
       };
 
-      const stored = localStorage.getItem('mote_materials');
-      const list: Material[] = stored ? JSON.parse(stored) : [];
+      const list = storage.local.get<Material[]>(STORAGE_KEYS.MATERIALS, []) || [];
       const index = list.findIndex((m) => m.id === newMat.id);
       if (index >= 0) {
         list[index] = newMat;
       } else {
         list.unshift(newMat);
       }
-      localStorage.setItem('mote_materials', JSON.stringify(list));
+      storage.local.set(STORAGE_KEYS.MATERIALS, list);
       return newMat;
     }
 
@@ -222,7 +215,7 @@ export const MaterialsAPI = {
       } else {
         list.unshift(newMat);
       }
-      localStorage.setItem('mote_materials', JSON.stringify(list));
+      storage.local.set(STORAGE_KEYS.MATERIALS, list);
       return newMat;
     }
   },
@@ -326,8 +319,7 @@ const STARTER_PROMPTS: PromptItem[] = [
 export const PromptsAPI = {
   async list(): Promise<PromptItem[]> {
     if (!isAuthenticated()) {
-      const stored = localStorage.getItem('mote_prompts');
-      const custom: PromptItem[] = stored ? JSON.parse(stored) : [];
+      const custom = storage.local.get<PromptItem[]>(STORAGE_KEYS.PROMPTS, []) || [];
       return [...custom, ...STARTER_PROMPTS];
     }
 
@@ -335,8 +327,7 @@ export const PromptsAPI = {
       const res = await fetchJSON<PromptItem[]>('/prompts');
       return res && res.length > 0 ? res : STARTER_PROMPTS;
     } catch {
-      const stored = localStorage.getItem('mote_prompts');
-      const custom: PromptItem[] = stored ? JSON.parse(stored) : [];
+      const custom = storage.local.get<PromptItem[]>(STORAGE_KEYS.PROMPTS, []) || [];
       return [...custom, ...STARTER_PROMPTS];
     }
   },
@@ -354,9 +345,8 @@ export const PromptsAPI = {
         created_at: now,
         updated_at: now,
       };
-      const stored = localStorage.getItem('mote_prompts');
-      const existing: PromptItem[] = stored ? JSON.parse(stored) : [];
-      localStorage.setItem('mote_prompts', JSON.stringify([newPrompt, ...existing]));
+      const existing = storage.local.get<PromptItem[]>(STORAGE_KEYS.PROMPTS, []) || [];
+      storage.local.set(STORAGE_KEYS.PROMPTS, [newPrompt, ...existing]);
       return newPrompt;
     }
 
@@ -377,9 +367,8 @@ export const PromptsAPI = {
         created_at: now,
         updated_at: now,
       };
-      const stored = localStorage.getItem('mote_prompts');
-      const existing: PromptItem[] = stored ? JSON.parse(stored) : [];
-      localStorage.setItem('mote_prompts', JSON.stringify([newPrompt, ...existing]));
+      const existing = storage.local.get<PromptItem[]>(STORAGE_KEYS.PROMPTS, []) || [];
+      storage.local.set(STORAGE_KEYS.PROMPTS, [newPrompt, ...existing]);
       return newPrompt;
     }
   },
@@ -389,15 +378,13 @@ export const PromptsAPI = {
 export const EssaysAPI = {
   async list(): Promise<Essay[]> {
     if (!isAuthenticated()) {
-      const stored = localStorage.getItem('mote_essays');
-      return stored ? JSON.parse(stored) : [];
+      return storage.local.get<Essay[]>(STORAGE_KEYS.ESSAYS, []) || [];
     }
 
     try {
       return await fetchJSON<Essay[]>('/essays');
     } catch {
-      const stored = localStorage.getItem('mote_essays');
-      return stored ? JSON.parse(stored) : [];
+      return storage.local.get<Essay[]>(STORAGE_KEYS.ESSAYS, []) || [];
     }
   },
 
@@ -405,8 +392,7 @@ export const EssaysAPI = {
     if (!isAuthenticated()) {
       const list = await EssaysAPI.list();
       const item = list.find((e) => e.id === id);
-      const opsStored = localStorage.getItem(`mote_essay_ops_${id}`);
-      const operations = opsStored ? JSON.parse(opsStored) : [];
+      const operations = storage.local.get<any[]>(`${STORAGE_KEYS.ESSAY_OPS_PREFIX}${id}`, []) || [];
       return item ? { essay: item, operations } : null;
     }
 
@@ -415,8 +401,7 @@ export const EssaysAPI = {
     } catch {
       const list = await EssaysAPI.list();
       const item = list.find((e) => e.id === id);
-      const opsStored = localStorage.getItem(`mote_essay_ops_${id}`);
-      const operations = opsStored ? JSON.parse(opsStored) : [];
+      const operations = storage.local.get<any[]>(`${STORAGE_KEYS.ESSAY_OPS_PREFIX}${id}`, []) || [];
       return item ? { essay: item, operations } : null;
     }
   },
@@ -449,17 +434,16 @@ export const EssaysAPI = {
         updated_at: now,
       };
 
-      const stored = localStorage.getItem('mote_essays');
-      const list: Essay[] = stored ? JSON.parse(stored) : [];
+      const list = storage.local.get<Essay[]>(STORAGE_KEYS.ESSAYS, []) || [];
       const idx = list.findIndex((e) => e.id === newEssay.id);
       if (idx >= 0) {
         list[idx] = newEssay;
       } else {
         list.unshift(newEssay);
       }
-      localStorage.setItem('mote_essays', JSON.stringify(list));
+      storage.local.set(STORAGE_KEYS.ESSAYS, list);
       if (data.operations) {
-        localStorage.setItem(`mote_essay_ops_${newEssay.id}`, JSON.stringify(data.operations));
+        storage.local.set(`${STORAGE_KEYS.ESSAY_OPS_PREFIX}${newEssay.id}`, data.operations);
       }
       return newEssay;
     }
@@ -506,9 +490,9 @@ export const EssaysAPI = {
       } else {
         list.unshift(newEssay);
       }
-      localStorage.setItem('mote_essays', JSON.stringify(list));
+      storage.local.set(STORAGE_KEYS.ESSAYS, list);
       if (data.operations) {
-        localStorage.setItem(`mote_essay_ops_${newEssay.id}`, JSON.stringify(data.operations));
+        storage.local.set(`${STORAGE_KEYS.ESSAY_OPS_PREFIX}${newEssay.id}`, data.operations);
       }
       return newEssay;
     }
@@ -532,11 +516,13 @@ export const EssaysAPI = {
 // 5. Mock Exams API (Protected)
 export const ExamsAPI = {
   async list(): Promise<ExamSession[]> {
-    if (!isAuthenticated()) return [];
+    if (!isAuthenticated()) {
+      return storage.local.get<ExamSession[]>(STORAGE_KEYS.EXAMS, []) || [];
+    }
     try {
       return await fetchJSON<ExamSession[]>('/exams');
     } catch {
-      return [];
+      return storage.local.get<ExamSession[]>(STORAGE_KEYS.EXAMS, []) || [];
     }
   },
 
@@ -573,13 +559,13 @@ export const AnalysisAPI = {
 
   async getWeaknesses(): Promise<WeaknessItem[]> {
     if (!isAuthenticated()) {
-      return [];
+      return storage.local.get<WeaknessItem[]>(STORAGE_KEYS.WEAKNESSES, []) || [];
     }
 
     try {
       return await fetchJSON<WeaknessItem[]>('/analysis/weaknesses');
     } catch {
-      return [];
+      return storage.local.get<WeaknessItem[]>(STORAGE_KEYS.WEAKNESSES, []) || [];
     }
   },
 
@@ -600,15 +586,13 @@ export const AnalysisAPI = {
 export const VocabularyAPI = {
   async list(): Promise<HardCharacter[]> {
     if (!isAuthenticated()) {
-      const stored = localStorage.getItem('mote_vocabulary');
-      return stored ? JSON.parse(stored) : [];
+      return storage.local.get<HardCharacter[]>(STORAGE_KEYS.VOCABULARY, []) || [];
     }
 
     try {
       return await fetchJSON<HardCharacter[]>('/vocabulary');
     } catch {
-      const stored = localStorage.getItem('mote_vocabulary');
-      return stored ? JSON.parse(stored) : [];
+      return storage.local.get<HardCharacter[]>(STORAGE_KEYS.VOCABULARY, []) || [];
     }
   },
 
@@ -624,9 +608,8 @@ export const VocabularyAPI = {
         mastery_level: 1,
         created_at: now,
       };
-      const stored = localStorage.getItem('mote_vocabulary');
-      const existing: HardCharacter[] = stored ? JSON.parse(stored) : [];
-      localStorage.setItem('mote_vocabulary', JSON.stringify([newChar, ...existing]));
+      const existing = storage.local.get<HardCharacter[]>(STORAGE_KEYS.VOCABULARY, []) || [];
+      storage.local.set(STORAGE_KEYS.VOCABULARY, [newChar, ...existing]);
       return newChar;
     }
 
@@ -647,7 +630,7 @@ export const VocabularyAPI = {
         created_at: now,
       };
       const existing = await VocabularyAPI.list();
-      localStorage.setItem('mote_vocabulary', JSON.stringify([newChar, ...existing]));
+      storage.local.set(STORAGE_KEYS.VOCABULARY, [newChar, ...existing]);
       return newChar;
     }
   },
