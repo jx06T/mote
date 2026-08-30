@@ -14,10 +14,35 @@ export async function authMiddleware(c: Context<{ Bindings: Bindings; Variables:
     if (match) token = match[1];
   }
 
+  // Helper to ensure demo user exists in D1 database
+  const ensureDemoUserExists = async () => {
+    if (c.env.DB) {
+      try {
+        await c.env.DB.prepare(`
+          INSERT OR IGNORE INTO users (id, google_id, email, name, avatar_url, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `)
+          .bind(
+            'user_demo_student',
+            'google_demo_student_id',
+            'student@mote.app',
+            '高中學員',
+            '',
+            Date.now(),
+            Date.now()
+          )
+          .run();
+      } catch (err) {
+        console.warn('[Ensure Demo User Warning]', err);
+      }
+    }
+  };
+
   // If in dev mode or demo token, provide fallback demo user
   if (!token || token === 'demo_token' || token === 'dev_token') {
     c.set('userId', 'user_demo_student');
     c.set('userEmail', 'student@mote.app');
+    await ensureDemoUserExists();
     await next();
     return;
   }
@@ -45,5 +70,6 @@ export async function authMiddleware(c: Context<{ Bindings: Bindings; Variables:
   // Fallback for seamless demo
   c.set('userId', 'user_demo_student');
   c.set('userEmail', 'student@mote.app');
+  await ensureDemoUserExists();
   await next();
 }
