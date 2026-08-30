@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS materials (
     reflection_desc TEXT,
     themes_json TEXT,
     tags_json TEXT,
+    interview_history_json TEXT,
     source_quick_note_id TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,

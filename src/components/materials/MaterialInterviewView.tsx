@@ -1,19 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MaterialsAPI } from '../../services/api';
+import { InterviewMessage } from '../../types';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
-import { Send, CheckCircle2, ArrowRight, Sparkles, MessageCircle, X } from 'lucide-react';
+import { Send, CheckCircle2, ArrowRight, Sparkles, MessageCircle, X, RotateCcw } from 'lucide-react';
 import { DEFAULT_INTERVIEW_OPENING, INTERVIEW_FALLBACK_QUESTIONS } from '../../config/prompts';
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
 
 interface MaterialInterviewViewProps {
   noteContent: string;
   sourceQuickNoteId?: string;
+  initialMessages?: InterviewMessage[];
+  title?: string;
   onComplete: (materialCard: any) => void;
   onCancel: () => void;
 }
@@ -21,15 +19,24 @@ interface MaterialInterviewViewProps {
 export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
   noteContent,
   sourceQuickNoteId,
+  initialMessages,
+  title,
   onComplete,
   onCancel,
 }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: DEFAULT_INTERVIEW_OPENING(noteContent),
-    },
-  ]);
+  const isResuming = Boolean(initialMessages && initialMessages.length > 0);
+
+  const [messages, setMessages] = useState<InterviewMessage[]>(() => {
+    if (initialMessages && initialMessages.length > 0) {
+      return initialMessages;
+    }
+    return [
+      {
+        role: 'assistant',
+        content: DEFAULT_INTERVIEW_OPENING(noteContent),
+      },
+    ];
+  });
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [summaryCard, setSummaryCard] = useState<any | null>(null);
@@ -48,7 +55,7 @@ export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
     if (e) e.preventDefault();
     if (!inputText.trim() || isLoading) return;
 
-    const userMsg: Message = { role: 'user', content: inputText.trim() };
+    const userMsg: InterviewMessage = { role: 'user', content: inputText.trim() };
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
     setInputText('');
@@ -87,6 +94,7 @@ export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
     onComplete({
       ...summaryCard,
       source_quick_note_id: sourceQuickNoteId,
+      interview_history: messages,
     });
   };
 
@@ -99,7 +107,9 @@ export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
             <MessageCircle className="w-3.5 h-3.5" />
           </div>
           <div>
-            <h3 className="text-xs font-semibold text-text-main font-display">素材深入訪談</h3>
+            <h3 className="text-xs font-semibold text-text-main font-display">
+              {title || (isResuming ? '接續素材深入訪談' : '素材深入訪談')}
+            </h3>
             <p className="text-[11px] text-text-muted truncate max-w-55">
               {noteContent}
             </p>
@@ -114,7 +124,7 @@ export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
           >
             關閉
           </Button>
-          {messages.length >= 3 && !summaryCard && (
+          {(messages.length >= 2 || isResuming) && !summaryCard && (
             <Button
               size="sm"
               onClick={handleGenerateSummary}
@@ -122,7 +132,7 @@ export const MaterialInterviewView: React.FC<MaterialInterviewViewProps> = ({
               className="text-xs py-1 px-2.5 bg-primary text-white"
             >
               <Sparkles className="w-3 h-3 mr-1" />
-              整理為素材卡
+              {isResuming ? '更新素材卡' : '整理為素材卡'}
             </Button>
           )}
         </div>

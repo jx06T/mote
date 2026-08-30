@@ -14,6 +14,11 @@ export interface QuickNote {
   updated_at: number;
 }
 
+export interface InterviewMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface Material {
   id: string;
   user_id: string;
@@ -34,6 +39,8 @@ export interface Material {
   reflection_desc?: string;
   themes: string[];
   tags?: string[];
+  interview_history?: InterviewMessage[];
+  source_quick_note_id?: string;
   created_at: number;
   updated_at: number;
 }

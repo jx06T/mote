@@ -25,6 +25,7 @@ materialsRouter.get('/', optionalAuthMiddleware, async (c) => {
         people: r.people_json ? JSON.parse(r.people_json) : [],
         themes: r.themes_json ? JSON.parse(r.themes_json) : [],
         tags: r.tags_json ? JSON.parse(r.tags_json) : [],
+        interview_history: r.interview_history_json ? JSON.parse(r.interview_history_json) : [],
       }))
     );
   } catch (err) {
@@ -58,6 +59,7 @@ materialsRouter.get('/:id', optionalAuthMiddleware, async (c) => {
       people: mat.people_json ? JSON.parse(mat.people_json) : [],
       themes: mat.themes_json ? JSON.parse(mat.themes_json) : [],
       tags: mat.tags_json ? JSON.parse(mat.tags_json) : [],
+      interview_history: mat.interview_history_json ? JSON.parse(mat.interview_history_json) : [],
     });
   } catch (err) {
     console.error('[D1 Get Material Error]', err);
@@ -86,6 +88,10 @@ materialsRouter.post('/', authMiddleware, async (c) => {
   const peopleJson = JSON.stringify(body.people || []);
   const themesJson = JSON.stringify(body.themes || []);
   const tagsJson = JSON.stringify(body.tags || []);
+  const interviewHistory = Array.isArray(body.interview_history)
+    ? body.interview_history
+    : (body.interview_history_json ? JSON.parse(body.interview_history_json) : []);
+  const interviewHistoryJson = JSON.stringify(interviewHistory);
 
   if (!c.env.DB) {
     return c.json({ error: 'Database binding not configured' }, 500);
@@ -103,7 +109,7 @@ materialsRouter.post('/', authMiddleware, async (c) => {
         UPDATE materials SET
           title = ?, story = ?, people_json = ?, time_desc = ?, location_desc = ?,
           scene_desc = ?, dialogue_desc = ?, emotion_desc = ?, reflection_desc = ?,
-          themes_json = ?, tags_json = ?, updated_at = ?
+          themes_json = ?, tags_json = ?, interview_history_json = ?, updated_at = ?
         WHERE id = ? AND user_id = ?
       `)
         .bind(
@@ -118,6 +124,7 @@ materialsRouter.post('/', authMiddleware, async (c) => {
           reflectionDesc,
           themesJson,
           tagsJson,
+          interviewHistoryJson,
           now,
           id,
           userId
@@ -128,8 +135,8 @@ materialsRouter.post('/', authMiddleware, async (c) => {
         INSERT INTO materials (
           id, user_id, title, story, people_json, time_desc, location_desc,
           scene_desc, dialogue_desc, emotion_desc, reflection_desc,
-          themes_json, tags_json, source_quick_note_id, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          themes_json, tags_json, interview_history_json, source_quick_note_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
         .bind(
           id,
@@ -145,6 +152,7 @@ materialsRouter.post('/', authMiddleware, async (c) => {
           reflectionDesc,
           themesJson,
           tagsJson,
+          interviewHistoryJson,
           sourceNoteId,
           now,
           now
@@ -189,6 +197,7 @@ materialsRouter.post('/', authMiddleware, async (c) => {
     reflection_desc: reflectionDesc,
     themes: body.themes || [],
     tags: body.tags || [],
+    interview_history: interviewHistory,
     source_quick_note_id: sourceNoteId,
     created_at: now,
     updated_at: now,

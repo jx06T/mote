@@ -2,7 +2,7 @@ import React from 'react';
 import { Material } from '../../types';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { Clock, MapPin, Tag, Sparkles } from 'lucide-react';
+import { Clock, MapPin, Tag, Sparkles, MessageCircle } from 'lucide-react';
 
 interface MaterialCardProps {
   material: Material;
@@ -15,6 +15,8 @@ export const MaterialCard: React.FC<MaterialCardProps> = ({
   onClick,
   onUseForWriting,
 }) => {
+  const historyCount = material.interview_history?.length || 0;
+
   return (
     <Card
       hoverable
@@ -54,13 +56,19 @@ export const MaterialCard: React.FC<MaterialCardProps> = ({
       </div>
 
       <div className="pt-3 border-t border-border-subtle flex items-center justify-between">
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap items-center gap-2">
           {material.tags?.slice(0, 2).map((t, idx) => (
             <span key={idx} className="text-[11px] text-text-muted flex items-center">
               <Tag className="w-3 h-3 mr-0.5" />
               {t}
             </span>
           ))}
+          {historyCount > 0 && (
+            <span className="text-[11px] text-primary/80 flex items-center bg-primary/5 px-1.5 py-0.5 rounded">
+              <MessageCircle className="w-3 h-3 mr-1" />
+              {historyCount} 則對話
+            </span>
+          )}
         </div>
 
         {onUseForWriting && (

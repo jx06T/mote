@@ -65,6 +65,8 @@ export const OfflineSyncManager = {
               reflection: mat.reflection || mat.reflection_desc,
               themes: mat.themes,
               tags: mat.tags,
+              interview_history: mat.interview_history,
+              source_quick_note_id: mat.source_quick_note_id,
             });
             syncedCount++;
           } catch (err: any) {
