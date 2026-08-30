@@ -22,6 +22,8 @@
            ├─ 結構化資料: Cloudflare D1 (SQLite) — 14 張資料表，強制 WHERE user_id = ? 多租戶隔離
            ├─ 物件儲存: Cloudflare R2 (稿紙與題目圖檔私有儲存)
            ├─ 統一寫作作品庫: 電子寫作草稿與紙本模擬考作答雙軌無縫聚合 (EssaysAPI.listUnified)
+           ├─ 單篇專屬評析與原文檢視 (`/essays/:id`): 原文排版、手寫縮圖、專屬 8 維分析報告與對照
+           ├─ 全域弱點追蹤 (`/analysis`): 跨文章常態弱點統計與長期演進趨勢分析
            └─ 完整 AI 閉環: AI 六大修辭潤飾、作文八大面向評析、紙本 50 分鐘全真模考
 ```
 
@@ -37,9 +39,9 @@
 | `material_interview` | `true` (開放試用) | AI 追問訪談並產出素材卡 |
 | `materials_library` | `true` (開放試用) | 本機素材檢索與標籤篩選 |
 | `prompt_search` | `true` (開放試用) | 輸入題目由 AI 匹配素材 |
-| `essay_editor` | `true` (開放試用) | 紙質排版、字數統計、電子作文草稿與統一寫作作品庫 (`/essays`, `EssayListDrawer`) |
+| `essay_editor` | `true` (開放試用) | 紙質排版、字數統計、電子作文草稿與統一寫作作品庫 (`/essays`, `/essays/:id`, `EssayListDrawer`) |
 | `essay_ai_assist` | **`false` (會員專屬)** | 選取文句進行比喻、仿寫、擴寫等六大修辭建議 |
-| `essay_analysis` | **`false` (會員專屬)** | 作文交卷評析與八大面向打分報告 |
+| `essay_analysis` | **`false` (會員專屬)** | 單篇作文 8 維專屬評析報告與全域弱點特徵追蹤 |
 | `paper_mock_exam` | **`false` (會員專屬)** | 50 分鐘全真計時、多頁 OCR 校對與作品庫自動同步 |
 | `vocabulary_quiz` | `true` (開放試用) | 生難字翻卡注音測驗 |
 | `cloud_sync` | **`false` (會員專屬)** | iPad / Mac / 手機多裝置自動同步 |

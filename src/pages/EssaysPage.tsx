@@ -51,10 +51,10 @@ export const EssaysPage: React.FC = () => {
   };
 
   const handleSelectItem = (selected: UnifiedWritingItem | any) => {
-    if (selected.sourceType === 'mock_exam') {
-      navigate('/analysis');
-      return;
-    }
+    navigate(`/essays/${selected.id}`);
+  };
+
+  const handleEditItem = (selected: UnifiedWritingItem | any) => {
     navigate(`/editor?id=${selected.id}`);
   };
 
@@ -267,6 +267,7 @@ export const EssaysPage: React.FC = () => {
               key={item.id}
               essay={item}
               onSelect={handleSelectItem}
+              onEdit={handleEditItem}
               onDelete={handleDeleteItem}
             />
           ))}

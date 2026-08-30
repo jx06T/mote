@@ -58,6 +58,7 @@
 ### Phase 9: 電子作文編輯器與作品庫 (Essay Editor & Unified Writing Library)
 - [x] Tiptap 作文編輯器配置 (`EssayEditor.tsx`)
 - [x] 寫作作品庫與草稿管理 (`EssaysPage.tsx`, `EssayListDrawer.tsx`, `EssayCard.tsx`)
+- [x] 單一作品專屬原文檢視與評析頁面 (`EssayDetailPage.tsx`, `/essays/:id`)
 - [x] 電子寫作與紙本模擬考作品雙軌彙整 (`UnifiedWritingItem`)
 - [x] 多篇作品檢視、搜尋、多維度篩選（電子/模考/草稿/評析）、切換與管理
 - [x] 字數即時統計與紙質筆記本排版
@@ -73,13 +74,14 @@
 - [x] 原文與建議對照面板 (`AIResultModal.tsx`)
 - [x] 採用建議與 Operation Log 記錄
 
-### Phase 12: 作文分析 (Essay Analysis)
+### Phase 12: 單篇作文評析 (Dedicated Essay Analysis)
 - [x] 八大寫作維度分析引擎（切題、立意、素材、結構、描寫、語言、情感、結尾）
-- [x] 結構化分析報告展示頁面 (`EssayAnalysisView.tsx`)
-- [x] 具體問題與下次練習定向建議
+- [x] 單一作品專屬評析報告與原文對照頁面 (`EssayDetailPage.tsx`, `EssayAnalysisView.tsx`)
+- [x] 具體優點、問題點與下次練習定向建議
 
-### Phase 13: 個人弱點資料庫 (Weakness Profile)
-- [x] 弱點自動聚合與趨勢追蹤 (`AnalysisPage.tsx`)
+### Phase 13: 個人寫作特徵與全域弱點追蹤 (Global Weakness Tracker)
+- [x] 全域弱點自動聚合與長期演進趨勢追蹤 (`AnalysisPage.tsx`)
+- [x] 已評析作品快速索引直達單篇報告
 - [x] 儀表板整合弱點提醒
 
 ### Phase 14: 紙本模擬考流程 (Paper Mock Exam)
@@ -91,9 +93,9 @@
 - [x] 作文全文 OCR 辨識與人工校對介面 (`ExamOCRReview.tsx`)
 
 ### Phase 16: 模擬考分析與作品庫整合 (Mock Exam Analysis & Library Integration)
-- [x] 模擬考作答自動觸發 AI 評析與報告產出
+- [x] 模擬考作答自動觸發 AI 評析與專屬報告產出
 - [x] 模擬考歷次紀錄整合 (`ExamPage.tsx`)
-- [x] 模擬考作答紀錄無縫彙整至全站寫作作品庫 (`EssaysAPI.listUnified()`)
+- [x] 模擬考作答紀錄無縫彙整至全站寫作作品庫 (`/essays/:id`)
 
 ### Phase 17: 難字庫與測驗 (Hard Characters)
 - [x] 寫作時反白標記難字

@@ -3,7 +3,7 @@ import { Essay, UnifiedWritingItem } from '../../types';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { FileText, Clock, Trash2, Edit3, Award, FileCheck, PenTool } from 'lucide-react';
+import { FileText, Clock, Trash2, Edit3, Award, BookOpen, PenTool } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface EssayCardProps {
@@ -11,6 +11,7 @@ interface EssayCardProps {
   promptTitle?: string;
   isActive?: boolean;
   onSelect: (essay: UnifiedWritingItem | Essay) => void;
+  onEdit?: (essay: UnifiedWritingItem | Essay) => void;
   onDelete?: (essay: UnifiedWritingItem | Essay) => void;
 }
 
@@ -24,6 +25,7 @@ export const EssayCard: React.FC<EssayCardProps> = ({
   promptTitle,
   isActive = false,
   onSelect,
+  onEdit,
   onDelete,
 }) => {
   const isMockExam = 'sourceType' in essay && essay.sourceType === 'mock_exam';
@@ -118,27 +120,36 @@ export const EssayCard: React.FC<EssayCardProps> = ({
           </span>
         </div>
 
-        <Button
-          size="sm"
-          variant={isActive ? 'primary' : 'outline'}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(essay);
-          }}
-          className="text-xs py-1 px-2.5 h-7 rounded-lg"
-        >
-          {isMockExam ? (
-            <>
-              <FileCheck className="w-3 h-3 mr-1" />
-              查看評析
-            </>
-          ) : (
-            <>
+        <div className="flex items-center space-x-1.5">
+          {!isMockExam && onEdit && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(essay);
+              }}
+              className="text-xs py-1 px-2 h-7 rounded-lg bg-surface hover:text-primary"
+              title="進入編輯器"
+            >
               <Edit3 className="w-3 h-3 mr-1" />
-              {isActive ? '編輯中' : '開啟編輯'}
-            </>
+              編輯
+            </Button>
           )}
-        </Button>
+
+          <Button
+            size="sm"
+            variant={isActive ? 'primary' : 'outline'}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(essay);
+            }}
+            className="text-xs py-1 px-2.5 h-7 rounded-lg"
+          >
+            <BookOpen className="w-3 h-3 mr-1" />
+            查看原文與評析
+          </Button>
+        </div>
       </div>
     </Card>
   );

@@ -216,13 +216,7 @@ export const DashboardPage: React.FC = () => {
             {writingItems.slice(0, 2).map((item) => (
               <div
                 key={item.id}
-                onClick={() => {
-                  if (item.sourceType === 'mock_exam') {
-                    navigate('/analysis');
-                  } else {
-                    navigate(`/editor?id=${item.id}`);
-                  }
-                }}
+                onClick={() => navigate(`/essays/${item.id}`)}
                 className="p-3.5 bg-surface border border-border-subtle hover:border-primary/40 rounded-xl transition-all shadow-xs cursor-pointer flex flex-col justify-between space-y-2 group"
               >
                 <div className="space-y-1">

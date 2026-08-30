@@ -122,30 +122,38 @@ examsRouter.post('/:id/submit', async (c) => {
       const anaId = `ana_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       await c.env.DB.prepare(`
         INSERT INTO essay_analysis (
-          id, user_id, prompt_match_score, intent_depth_score, material_richness_score,
-          structure_score, description_score, language_score, emotion_score,
-          conclusion_score, overall_summary, strengths_json, weaknesses_json,
-          next_practice_advice, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, essay_id, exam_submission_id, user_id,
+          overall_summary, scores_json, strengths_json, weaknesses_json, next_practice_advice, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
         .bind(
           anaId,
+          null,
+          examId,
           userId,
-          analysis.scores.promptMatch,
-          analysis.scores.intentDepth,
-          analysis.scores.materialRichness,
-          analysis.scores.structure,
-          analysis.scores.description,
-          analysis.scores.language,
-          analysis.scores.emotion,
-          analysis.scores.conclusion,
           analysis.overallSummary,
+          JSON.stringify(analysis.scores),
           JSON.stringify(analysis.strengths),
           JSON.stringify(analysis.weaknesses),
           analysis.nextPracticeAdvice,
           now
         )
         .run();
+
+      // Aggregate and update weaknesses in D1
+      for (const w of analysis.weaknesses) {
+        const wkId = `wk_${w.dimension}_${userId}`.slice(0, 50);
+        await c.env.DB.prepare(`
+          INSERT INTO weaknesses (id, user_id, dimension, description, occurrence_count, recent_trend, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 1, 'steady', ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            occurrence_count = occurrence_count + 1,
+            description = excluded.description,
+            updated_at = excluded.updated_at
+        `)
+          .bind(wkId, userId, w.dimension, w.issue, now, now)
+          .run();
+      }
     } catch (err) {
       console.error('[D1 Save Exam Analysis Error]', err);
     }

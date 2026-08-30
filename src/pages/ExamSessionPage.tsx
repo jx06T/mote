@@ -94,7 +94,15 @@ export const ExamSessionPage: React.FC = () => {
             analysis={analysisResult}
             title={`模擬考評析報告：${promptTitle}`}
           />
-          <div className="flex justify-end pt-2">
+          <div className="flex items-center justify-end space-x-3 pt-2">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => navigate(`/essays/${examSessionId}`)}
+              className="text-xs bg-surface"
+            >
+              進入作品專屬評析與原文
+            </Button>
             <Button size="md" onClick={() => navigate('/exams')}>
               返回模擬考主頁
               <ChevronRight className="w-4 h-4 ml-1" />

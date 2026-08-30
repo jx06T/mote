@@ -51,6 +51,15 @@ analysisRouter.post('/evaluate', authMiddleware, async (c) => {
         )
         .run();
 
+      // If essayId is present, update essay status to 'analyzed'
+      if (body.essayId) {
+        await c.env.DB.prepare(
+          'UPDATE essays SET status = "analyzed", updated_at = ? WHERE id = ? AND user_id = ?'
+        )
+          .bind(now, body.essayId, userId)
+          .run();
+      }
+
       // Aggregate and update weaknesses in D1
       for (const w of result.weaknesses) {
         const wkId = `wk_${w.dimension}_${userId}`.slice(0, 50);
@@ -71,6 +80,60 @@ analysisRouter.post('/evaluate', authMiddleware, async (c) => {
   }
 
   return c.json({ id, analysis: result });
+});
+
+// 2. Get specific analysis report by targetId (essayId, examId, or analysisId)
+analysisRouter.get('/target/:targetId', optionalAuthMiddleware, async (c) => {
+  const userId = c.get('userId');
+  const targetId = c.req.param('targetId');
+
+  if (!userId || !c.env.DB) {
+    return c.json(null);
+  }
+
+  try {
+    const row: any = await c.env.DB.prepare(`
+      SELECT * FROM essay_analysis
+      WHERE user_id = ? AND (essay_id = ? OR exam_submission_id = ? OR id = ?)
+      ORDER BY created_at DESC LIMIT 1
+    `)
+      .bind(userId, targetId, targetId, targetId)
+      .first();
+
+    if (!row) {
+      return c.json(null);
+    }
+
+    let scores = {
+      promptMatch: 80,
+      intentDepth: 80,
+      materialRichness: 80,
+      structure: 80,
+      description: 80,
+      language: 80,
+      emotion: 80,
+      conclusion: 80,
+    };
+
+    if (row.scores_json) {
+      try {
+        scores = JSON.parse(row.scores_json);
+      } catch {}
+    }
+
+    return c.json({
+      id: row.id,
+      overallSummary: row.overall_summary,
+      scores,
+      strengths: row.strengths_json ? JSON.parse(row.strengths_json) : [],
+      weaknesses: row.weaknesses_json ? JSON.parse(row.weaknesses_json) : [],
+      nextPracticeAdvice: row.next_practice_advice,
+      created_at: row.created_at,
+    });
+  } catch (err) {
+    console.error('[D1 Get Target Analysis Error]', err);
+    return c.json(null);
+  }
 });
 
 // 2. Get user overall weakness report & trends (Members get D1 data, Guests receive [])

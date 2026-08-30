@@ -465,6 +465,22 @@ export const EssaysAPI = {
     );
   },
 
+  async getUnified(id: string): Promise<UnifiedWritingItem | null> {
+    const list = await EssaysAPI.listUnified();
+    const item = list.find((i) => i.id === id);
+    if (!item) return null;
+
+    // Attach analysis if available
+    try {
+      const analysis = await AnalysisAPI.getForTarget(id);
+      if (analysis) {
+        item.analysis = analysis;
+      }
+    } catch {}
+
+    return item;
+  },
+
   async get(id: string): Promise<{ essay: Essay; operations: any[] } | null> {
     if (!isAuthenticated()) {
       const list = await EssaysAPI.list();
@@ -488,6 +504,7 @@ export const EssaysAPI = {
     const filtered = list.filter((e) => e.id !== id);
     storage.local.set(STORAGE_KEYS.ESSAYS, filtered);
     storage.local.remove(`${STORAGE_KEYS.ESSAY_OPS_PREFIX}${id}`);
+    storage.local.remove(`mote_analysis_${id}`);
 
     if (!isAuthenticated()) {
       return true;
@@ -498,93 +515,99 @@ export const EssaysAPI = {
         method: 'DELETE',
       });
       return true;
-    } catch (err) {
-      console.warn('[Delete Essay fallback to local only]', err);
+    } catch {
       return true;
     }
   },
 
-  async save(data: {
-    id?: string;
-    title?: string;
-    content?: string;
-    current_content?: string;
-    prompt_id?: string;
-    promptId?: string;
-    word_count?: number;
-    status?: string;
-    operations?: any[];
-  }): Promise<Essay> {
-    const essayContent = data.current_content || data.content || '';
+  async save(
+    idOrData:
+      | string
+      | {
+          id?: string;
+          title?: string;
+          content?: string;
+          current_content?: string;
+          promptId?: string;
+          prompt_id?: string;
+          word_count?: number;
+          wordCount?: number;
+          status?: 'draft' | 'submitted' | 'analyzed';
+          operations?: any[];
+        },
+    maybeData?: {
+      title?: string;
+      content?: string;
+      current_content?: string;
+      promptId?: string;
+      prompt_id?: string;
+      word_count?: number;
+      wordCount?: number;
+      status?: 'draft' | 'submitted' | 'analyzed';
+      operations?: any[];
+    }
+  ): Promise<Essay> {
+    const data = typeof idOrData === 'object' ? idOrData : maybeData || {};
+    const id = (typeof idOrData === 'string' ? idOrData : idOrData.id) || `temp_es_${Date.now()}`;
+    const essayContent = data.content || data.current_content || '';
+    const wordCount = essayContent.replace(/<[^>]*>?/gm, '').replace(/\s+/g, '').length;
+    const promptId = data.promptId || data.prompt_id;
+    const now = Date.now();
 
-    if (!isAuthenticated()) {
-      const now = Date.now();
-      const essayId = data.id || `temp_es_${now}_${Math.random().toString(36).slice(2, 6)}`;
-      const newEssay: Essay = {
-        id: essayId,
-        user_id: 'guest',
-        prompt_id: data.prompt_id || data.promptId,
-        title: data.title || '無標題作文',
-        current_content: essayContent,
-        word_count: data.word_count || essayContent.replace(/\s+/g, '').length,
-        status: (data.status as any) || 'draft',
-        created_at: now,
-        updated_at: now,
-      };
-
-      const list = storage.local.get<Essay[]>(STORAGE_KEYS.ESSAYS, []) || [];
-      const idx = list.findIndex((e) => e.id === newEssay.id);
-      if (idx >= 0) {
-        list[idx] = newEssay;
-      } else {
-        list.unshift(newEssay);
+    if (isAuthenticated()) {
+      try {
+        const res = await fetchJSON<{ success: boolean; essay: Essay }>(`/essays/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            title: data.title,
+            currentContent: essayContent,
+            promptId,
+            status: data.status || 'draft',
+            wordCount,
+            operations: data.operations,
+          }),
+        });
+        return res.essay;
+      } catch (err) {
+        console.error('[Save Essay API Error, falling back to local]', err);
       }
-      storage.local.set(STORAGE_KEYS.ESSAYS, list);
-      if (data.operations) {
-        storage.local.set(`${STORAGE_KEYS.ESSAY_OPS_PREFIX}${newEssay.id}`, data.operations);
-      }
-      return newEssay;
     }
 
-    const payload = {
-      id: data.id,
-      title: data.title,
-      content: essayContent,
-      promptId: data.prompt_id || data.promptId,
-      status: data.status,
-      operations: (data.operations || []).map((op) => ({
-        type: op.operation_type || op.type || 'INSERT',
-        position: op.position || 0,
-        length: op.length || 0,
-        oldContent: op.old_content || op.oldContent,
-        newContent: op.new_content || op.newContent,
-        source: op.source || 'user',
-      })),
-    };
+    // Guest / Fallback
+    const list = storage.local.get<Essay[]>(STORAGE_KEYS.ESSAYS, []) || [];
+    const existingIndex = list.findIndex((e) => e.id === id);
 
-    try {
-      return await fetchJSON<Essay>('/essays', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    } catch {
-      const now = Date.now();
+    if (existingIndex >= 0) {
+      const updated: Essay = {
+        ...list[existingIndex],
+        title: data.title !== undefined ? data.title : list[existingIndex].title,
+        current_content: essayContent,
+        prompt_id: promptId !== undefined ? promptId : list[existingIndex].prompt_id,
+        status: (data.status as any) || list[existingIndex].status || 'draft',
+        word_count: wordCount,
+        updated_at: now,
+      };
+      list[existingIndex] = updated;
+      storage.local.set(STORAGE_KEYS.ESSAYS, list);
+      if (data.operations) {
+        storage.local.set(`${STORAGE_KEYS.ESSAY_OPS_PREFIX}${id}`, data.operations);
+      }
+      return updated;
+    } else {
       const newEssay: Essay = {
-        id: data.id || `temp_es_${now}`,
+        id,
         user_id: 'guest',
-        prompt_id: data.prompt_id || data.promptId,
         title: data.title || '無標題作文',
         current_content: essayContent,
-        word_count: data.word_count || essayContent.replace(/\s+/g, '').length,
+        prompt_id: promptId,
         status: (data.status as any) || 'draft',
+        word_count: wordCount,
         created_at: now,
         updated_at: now,
       };
-
-      const list = await EssaysAPI.list();
-      const idx = list.findIndex((e) => e.id === newEssay.id);
-      if (idx >= 0) {
-        list[idx] = newEssay;
+      const foundIdx = list.findIndex((e) => e.id === newEssay.id);
+      if (foundIdx >= 0) {
+        list[foundIdx] = newEssay;
       } else {
         list.unshift(newEssay);
       }
@@ -636,23 +659,68 @@ export const ExamsAPI = {
     pages: Array<{ pageNumber: number; image: string; text?: string }>,
     finalText: string
   ): Promise<{ success: boolean; submissionId: string; analysis: EssayAnalysis }> {
-    return await fetchJSON<{ success: boolean; submissionId: string; analysis: EssayAnalysis }>(
+    const res = await fetchJSON<{ success: boolean; submissionId: string; analysis: EssayAnalysis }>(
       `/exams/${examId}/submit`,
       {
         method: 'POST',
         body: JSON.stringify({ pages, finalText }),
       }
     );
+
+    if (res.analysis) {
+      storage.local.set(`mote_analysis_${examId}`, res.analysis);
+      if (res.submissionId) {
+        storage.local.set(`mote_analysis_${res.submissionId}`, res.analysis);
+      }
+    }
+
+    return res;
   },
 };
 
 // 6. Analysis API (Protected)
 export const AnalysisAPI = {
-  async evaluate(title: string, content: string, promptText?: string) {
-    return await fetchJSON<{ id: string; analysis: EssayAnalysis }>('/analysis/evaluate', {
+  async evaluate(
+    title: string,
+    content: string,
+    promptText?: string,
+    essayId?: string,
+    examId?: string
+  ) {
+    const res = await fetchJSON<{ id: string; analysis: EssayAnalysis }>('/analysis/evaluate', {
       method: 'POST',
-      body: JSON.stringify({ title, content, promptText }),
+      body: JSON.stringify({ title, content, promptText, essayId, examId }),
     });
+
+    if (res.analysis) {
+      if (essayId) storage.local.set(`mote_analysis_${essayId}`, res.analysis);
+      if (examId) storage.local.set(`mote_analysis_${examId}`, res.analysis);
+      storage.local.set(`mote_analysis_${res.id}`, res.analysis);
+    }
+
+    return res;
+  },
+
+  async getForTarget(targetId: string): Promise<EssayAnalysis | null> {
+    // 1. Check local storage first
+    const cached = storage.local.get<EssayAnalysis | null>(`mote_analysis_${targetId}`, null);
+    if (cached) {
+      return cached;
+    }
+
+    if (!isAuthenticated()) {
+      return null;
+    }
+
+    try {
+      const res = await fetchJSON<EssayAnalysis | null>(`/analysis/target/${targetId}`);
+      if (res) {
+        storage.local.set(`mote_analysis_${targetId}`, res);
+      }
+      return res;
+    } catch {
+      return null;
+    }
   },
 
   async getWeaknesses(): Promise<WeaknessItem[]> {

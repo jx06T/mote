@@ -72,7 +72,7 @@ export const EssayListDrawer: React.FC<EssayListDrawerProps> = ({
   const handleSelectItem = (selected: UnifiedWritingItem | any) => {
     if (selected.sourceType === 'mock_exam') {
       onClose();
-      navigate('/analysis');
+      navigate(`/essays/${selected.id}`);
       return;
     }
     onSelectEssay(selected.id);
@@ -223,6 +223,10 @@ export const EssayListDrawer: React.FC<EssayListDrawerProps> = ({
                   essay={item}
                   isActive={item.id === currentEssayId}
                   onSelect={handleSelectItem}
+                  onEdit={(selected) => {
+                    onSelectEssay(selected.id);
+                    onClose();
+                  }}
                   onDelete={handleDeleteItem}
                 />
               ))}

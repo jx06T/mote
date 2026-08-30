@@ -145,7 +145,10 @@ export interface UnifiedWritingItem {
   wordCount: number;
   status: 'draft' | 'submitted' | 'analyzed';
   durationMinutes?: number;
+  rawImages?: Array<{ pageNumber: number; image: string }>;
+  analysis?: EssayAnalysis;
   createdAt: number;
   updatedAt: number;
 }
+
 
