@@ -285,7 +285,9 @@ export const EssaysAPI = {
     } catch {
       const list = await EssaysAPI.list();
       const item = list.find((e) => e.id === id);
-      return item ? { essay: item, operations: [] } : null;
+      const opsStored = localStorage.getItem(`mote_essay_ops_${id}`);
+      const operations = opsStored ? JSON.parse(opsStored) : [];
+      return item ? { essay: item, operations } : null;
     }
   },
 
@@ -298,6 +300,7 @@ export const EssaysAPI = {
     promptId?: string;
     word_count?: number;
     status?: string;
+    operations?: any[];
   }): Promise<Essay> {
     const essayContent = data.current_content || data.content || '';
     const payload = {
@@ -306,6 +309,14 @@ export const EssaysAPI = {
       content: essayContent,
       promptId: data.prompt_id || data.promptId,
       status: data.status,
+      operations: (data.operations || []).map((op) => ({
+        type: op.operation_type || op.type || 'INSERT',
+        position: op.position || 0,
+        length: op.length || 0,
+        oldContent: op.old_content || op.oldContent,
+        newContent: op.new_content || op.newContent,
+        source: op.source || 'user',
+      })),
     };
 
     try {
@@ -335,6 +346,9 @@ export const EssaysAPI = {
         list.unshift(newEssay);
       }
       localStorage.setItem('mote_essays', JSON.stringify(list));
+      if (data.operations) {
+        localStorage.setItem(`mote_essay_ops_${newEssay.id}`, JSON.stringify(data.operations));
+      }
       return newEssay;
     }
   },
@@ -482,11 +496,11 @@ export const VocabularyAPI = {
     }
   },
 
-  async add(characterText: string, zhuyin?: string): Promise<HardCharacter> {
+  async add(characterText: string, zhuyin?: string, sourceEssayId?: string): Promise<HardCharacter> {
     try {
       return await fetchJSON<HardCharacter>('/vocabulary', {
         method: 'POST',
-        body: JSON.stringify({ characterText, zhuyin }),
+        body: JSON.stringify({ characterText, zhuyin, sourceEssayId }),
       });
     } catch {
       const newChar: HardCharacter = {
@@ -494,6 +508,7 @@ export const VocabularyAPI = {
         user_id: 'user_local',
         character_text: characterText,
         zhuyin: zhuyin || '',
+        source_essay_id: sourceEssayId,
         mastery_level: 1,
         created_at: Date.now(),
       };

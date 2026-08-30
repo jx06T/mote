@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, BookOpen, PenTool, Award, User, Sparkles } from 'lucide-react';
+import { Home, BookOpen, PenTool, Sparkles, User } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export const MobileBottomNav: React.FC = () => {
@@ -8,7 +8,6 @@ export const MobileBottomNav: React.FC = () => {
     { to: '/', label: '首頁', icon: Home },
     { to: '/materials', label: '素材庫', icon: BookOpen },
     { to: '/editor', label: '寫作', icon: PenTool },
-    { to: '/exams', label: '模擬考', icon: Award },
     { to: '/analysis', label: '弱點', icon: Sparkles },
     { to: '/settings', label: '我的', icon: User },
   ];
