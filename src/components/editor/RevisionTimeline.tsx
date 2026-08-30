@@ -45,26 +45,49 @@ export const RevisionTimeline: React.FC<RevisionTimelineProps> = ({ operations }
 
   return (
     <div className="space-y-3 p-2">
-      <h4 className="text-xs font-semibold text-text-muted flex items-center mb-3">
-        <Clock className="w-3.5 h-3.5 mr-1" />
-        寫作思考與修改歷程
-      </h4>
       <div className="relative pl-4 border-l-2 border-border-subtle space-y-4">
         {operations.map((op, idx) => (
           <div key={op.id || idx} className="relative group">
             <div className="absolute -left-5.25 top-0.5 w-4 h-4 rounded-full bg-surface border border-border-subtle flex items-center justify-center shadow-xs">
               {getOpIcon(op.operation_type)}
             </div>
-            <div>
-              <p className="text-xs font-medium text-text-main leading-relaxed">
-                {getOpLabel(op)}
-              </p>
-              <span className="text-[10px] text-text-muted">
-                {new Date(op.created_at).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-text-main leading-relaxed">
+                  {getOpLabel(op)}
+                </p>
+                <span className="text-[10px] text-text-muted shrink-0 ml-2">
+                  {new Date(op.created_at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+
+              {/* Show text diff snippet if available */}
+              {op.operation_type === 'AI_ACCEPT' && (op.old_content || op.new_content) && (
+                <div className="text-[11px] bg-surface-elevated border border-border-subtle rounded-lg p-2 space-y-1">
+                  {op.old_content && (
+                    <div className="text-text-muted line-through">
+                      <span className="font-semibold text-status-danger mr-1">-</span>
+                      {op.old_content}
+                    </div>
+                  )}
+                  {op.new_content && (
+                    <div className="text-primary font-medium">
+                      <span className="font-semibold text-status-success mr-1">+</span>
+                      {op.new_content}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {op.operation_type === 'DELETE' && op.old_content && (
+                <div className="text-[11px] bg-surface-elevated border border-border-subtle rounded-lg p-2 text-status-danger/90">
+                  <span className="font-semibold mr-1">已刪除：</span>
+                  {op.old_content}
+                </div>
+              )}
             </div>
           </div>
         ))}

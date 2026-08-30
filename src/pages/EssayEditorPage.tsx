@@ -18,11 +18,37 @@ export const EssayEditorPage: React.FC = () => {
   const promptTitle = searchParams.get('promptTitle') || '';
   const promptText = searchParams.get('promptText') || '';
   const materialId = searchParams.get('materialId');
+  const essayIdParam = searchParams.get('id') || searchParams.get('essayId') || undefined;
 
   const [refMaterial, setRefMaterial] = useState<Material | null>(null);
   const [showMaterialDrawer, setShowMaterialDrawer] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<EssayAnalysis | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
+
+  // Existing essay load state
+  const [initialEssayTitle, setInitialEssayTitle] = useState(promptTitle || '無標題作文');
+  const [initialEssayContent, setInitialEssayContent] = useState('');
+  const [isLoadingEssay, setIsLoadingEssay] = useState(!!essayIdParam);
+
+  useEffect(() => {
+    async function loadEssay() {
+      if (essayIdParam) {
+        setIsLoadingEssay(true);
+        try {
+          const data = await EssaysAPI.get(essayIdParam);
+          if (data?.essay) {
+            setInitialEssayTitle(data.essay.title || promptTitle || '無標題作文');
+            setInitialEssayContent(data.essay.current_content || '');
+          }
+        } catch (err) {
+          console.error('[Load Essay Page Error]', err);
+        } finally {
+          setIsLoadingEssay(false);
+        }
+      }
+    }
+    loadEssay();
+  }, [essayIdParam]);
 
   useEffect(() => {
     async function loadRef() {
@@ -45,7 +71,8 @@ export const EssayEditorPage: React.FC = () => {
     setIsEvaluating(true);
     try {
       // Save essay first
-      await EssaysAPI.save({
+      const saved = await EssaysAPI.save({
+        id: essayIdParam,
         title: title || promptTitle || '無標題作文',
         content,
         status: 'submitted',
@@ -82,12 +109,16 @@ export const EssayEditorPage: React.FC = () => {
 
       {/* Main Editor Component */}
       <div className="flex-1 overflow-hidden">
-        <EssayEditor
-          initialTitle={promptTitle || '無標題作文'}
-          promptTitle={promptTitle}
-          promptText={promptText}
-          onSubmitForAnalysis={handleSubmitForAnalysis}
-        />
+        {!isLoadingEssay && (
+          <EssayEditor
+            essayId={essayIdParam}
+            initialTitle={initialEssayTitle}
+            initialContent={initialEssayContent}
+            promptTitle={promptTitle}
+            promptText={promptText}
+            onSubmitForAnalysis={handleSubmitForAnalysis}
+          />
+        )}
       </div>
 
       {/* Material Drawer Modal */}

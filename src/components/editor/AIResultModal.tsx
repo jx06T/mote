@@ -28,7 +28,7 @@ export const AIResultModal: React.FC<AIResultModalProps> = ({
           <span className="block text-xs font-semibold text-text-muted mb-1">
             原句：
           </span>
-          <div className="p-3 bg-neutral-100/70 border border-border-subtle rounded-xl text-text-soft font-display leading-relaxed">
+          <div className="p-3 bg-surface-elevated border border-border-subtle rounded-xl text-text-soft font-display leading-relaxed">
             {originalText}
           </div>
         </div>

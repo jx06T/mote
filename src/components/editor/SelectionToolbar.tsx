@@ -27,12 +27,17 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
     { key: 'scene' as const, label: '加畫面', icon: Eye },
   ];
 
+  // Boundary clamping to prevent toolbar from overflowing screen
+  const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
+  const clampedLeft = Math.min(Math.max(16, position.left - 40), Math.max(16, screenWidth - 360));
+  const clampedTop = Math.max(56, position.top - 46);
+
   return (
     <div
-      className="fixed z-50 flex items-center bg-surface border border-border-subtle rounded-xl shadow-lg p-1 space-x-1 animate-in fade-in zoom-in-95 duration-150"
+      className="fixed z-50 flex items-center bg-surface/95 backdrop-blur-md border border-border-subtle rounded-xl shadow-lg p-1 space-x-1 max-w-[calc(100vw-32px)] overflow-x-auto no-scrollbar animate-in fade-in zoom-in-95 duration-150"
       style={{
-        top: `${Math.max(10, position.top - 46)}px`,
-        left: `${Math.max(10, position.left)}px`,
+        top: `${clampedTop}px`,
+        left: `${clampedLeft}px`,
       }}
     >
       {actions.map((act) => {
@@ -41,7 +46,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
           <button
             key={act.key}
             onClick={() => onAction(act.key)}
-            className="flex items-center px-2 py-1 rounded-lg text-xs font-medium text-text-soft hover:text-primary hover:bg-neutral-100 transition-colors"
+            className="flex items-center px-2 py-1 rounded-lg text-xs font-medium text-text-soft hover:text-primary hover:bg-surface-elevated transition-colors shrink-0"
           >
             <Icon className="w-3.5 h-3.5 mr-1" />
             {act.label}
@@ -49,11 +54,11 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
         );
       })}
 
-      <div className="h-4 w-px bg-border-subtle mx-0.5" />
+      <div className="h-4 w-px bg-border-subtle mx-0.5 shrink-0" />
 
       <button
         onClick={onMarkHardCharacter}
-        className="flex items-center px-2 py-1 rounded-lg text-xs font-medium text-status-warning hover:bg-status-warning/10 transition-colors"
+        className="flex items-center px-2 py-1 rounded-lg text-xs font-medium text-status-warning hover:bg-status-warning/10 transition-colors shrink-0"
       >
         <BookmarkPlus className="w-3.5 h-3.5 mr-1" />
         標記難字

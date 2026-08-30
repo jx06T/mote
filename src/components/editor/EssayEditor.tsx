@@ -12,7 +12,7 @@ import { useToast } from '../../context/ToastContext';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
-import { Clock, Send, Check, BookmarkCheck, FileText, ChevronRight } from 'lucide-react';
+import { Clock, Send, BookmarkCheck, FileText, Loader2 } from 'lucide-react';
 
 interface EssayEditorProps {
   essayId?: string;
@@ -22,6 +22,18 @@ interface EssayEditorProps {
   promptText?: string;
   onSubmitForAnalysis: (title: string, content: string) => void;
 }
+
+const formatToHtml = (content: string) => {
+  if (!content) return '<p></p>';
+  if (content.trim().startsWith('<p>') || content.trim().startsWith('<')) {
+    return content;
+  }
+  return content
+    .split(/\n+/)
+    .filter((line) => line.trim())
+    .map((line) => `<p>${line}</p>`)
+    .join('');
+};
 
 export const EssayEditor: React.FC<EssayEditorProps> = ({
   essayId,
@@ -33,13 +45,15 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
 }) => {
   const { checkAccess, openAuthModal } = useAuth();
   const { showToast } = useToast();
+  const [currentEssayId, setCurrentEssayId] = useState<string | undefined>(essayId);
   const [title, setTitle] = useState(initialTitle);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const [selectionPos, setSelectionPos] = useState<{ top: number; left: number } | null>(null);
   const [selectedText, setSelectedText] = useState('');
   const [selectedRange, setSelectedRange] = useState<{ from: number; to: number } | null>(null);
 
-  // AI Assist Modal State
+  // AI Assist Modal & Loading State
+  const [isAssisting, setIsAssisting] = useState(false);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiResult, setAiResult] = useState<{ original: string; suggestion: string; explanation: string }>({
     original: '',
@@ -64,8 +78,8 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
         placeholder: '開始書寫你的作文...每一段請按 Enter 開啟新段落。',
       }),
     ],
-    content: initialContent || '<p></p>',
-    onUpdate: ({ editor }: any) => {
+    content: formatToHtml(initialContent),
+    onUpdate: () => {
       setSaveStatus('saving');
     },
     onSelectionUpdate: ({ editor }: any) => {
@@ -87,21 +101,60 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
     },
   });
 
+  // Update essay ID if prop changes
+  useEffect(() => {
+    if (essayId) {
+      setCurrentEssayId(essayId);
+    }
+  }, [essayId]);
+
+  // Load existing essay operations or details if essayId is provided
+  useEffect(() => {
+    async function loadEssayDetails() {
+      if (!currentEssayId) return;
+      try {
+        const data = await EssaysAPI.get(currentEssayId);
+        if (data) {
+          if (data.essay?.title && data.essay.title !== '無標題作文') {
+            setTitle(data.essay.title);
+          }
+          if (data.operations && data.operations.length > 0) {
+            setOperations(data.operations);
+          }
+          if (editor && editor.isEmpty && data.essay?.current_content) {
+            editor.commands.setContent(formatToHtml(data.essay.current_content));
+          }
+        }
+      } catch (err) {
+        console.error('[Load Essay Details Error]', err);
+      }
+    }
+    loadEssayDetails();
+  }, [currentEssayId, editor]);
+
   // Debounced Autosave
   useEffect(() => {
     if (!editor || saveStatus !== 'saving') return;
     const timer = setTimeout(async () => {
       const content = editor.getText();
-      await EssaysAPI.save({
-        id: essayId,
-        title,
-        content,
-      });
-      setSaveStatus('saved');
+      try {
+        const saved = await EssaysAPI.save({
+          id: currentEssayId,
+          title,
+          content,
+          operations,
+        });
+        if (saved?.id && !currentEssayId) {
+          setCurrentEssayId(saved.id);
+        }
+        setSaveStatus('saved');
+      } catch (err) {
+        console.error('[Autosave Error]', err);
+      }
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [editor?.getText(), title, saveStatus]);
+  }, [editor?.getText(), title, saveStatus, operations, currentEssayId]);
 
   // Trigger AI Assist
   const handleAIAction = async (
@@ -116,12 +169,16 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
       return;
     }
 
+    setIsAssisting(true);
     try {
       const res = await EssaysAPI.assist(selectedText, action, editor?.getText());
       setAiResult(res);
       setAiModalOpen(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      showToast('error', err.message || 'AI 修辭建議生成失敗，請稍後再試。');
+    } finally {
+      setIsAssisting(false);
     }
   };
 
@@ -143,6 +200,7 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
       created_at: Date.now(),
     };
     setOperations((prev) => [newOp, ...prev]);
+    setSaveStatus('saving');
   };
 
   // Mark Hard Character
@@ -153,11 +211,16 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
   };
 
   const handleSaveHardChar = async () => {
-    if (!hardChar) return;
-    await VocabularyAPI.add(hardChar, hardZhuyin);
-    setHardCharModal(false);
-    setHardChar('');
-    setHardZhuyin('');
+    if (!hardChar.trim()) return;
+    try {
+      await VocabularyAPI.add(hardChar.trim(), hardZhuyin.trim(), currentEssayId);
+      showToast('success', `已成功將「${hardChar.trim()}」標記並存入生難字庫！`);
+      setHardCharModal(false);
+      setHardChar('');
+      setHardZhuyin('');
+    } catch (err: any) {
+      showToast('error', err.message || '儲存生難字失敗');
+    }
   };
 
   const wordCount = editor?.storage.characterCount.characters() || 0;
@@ -183,13 +246,13 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
           <span className="text-text-muted flex items-center">
             {saveStatus === 'saving' ? '儲存中...' : '已儲存'}
           </span>
-          <span className="text-text-soft font-mono px-2 py-0.5 bg-neutral-100 rounded-md">
+          <span className="text-text-soft font-mono px-2 py-0.5 bg-surface-elevated border border-border-subtle rounded-md">
             {wordCount} 字
           </span>
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-neutral-100 transition-colors"
-            title="歷程紀錄"
+            className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-surface-elevated transition-colors"
+            title="寫作歷程"
           >
             <Clock className="w-4 h-4" />
           </button>
@@ -238,6 +301,14 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
           onMarkHardCharacter={handleOpenMarkHardChar}
           onClose={() => setSelectionPos(null)}
         />
+      )}
+
+      {/* AI Assisting Spinner Feedback */}
+      {isAssisting && (
+        <div className="fixed bottom-6 right-6 z-40 bg-surface/95 backdrop-blur-md border border-border-subtle shadow-lg rounded-xl px-3.5 py-2 flex items-center space-x-2 text-xs text-primary font-medium animate-in fade-in">
+          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          <span>AI 正在思考修辭建議...</span>
+        </div>
       )}
 
       {/* AI Suggestion Comparison Modal */}
@@ -290,3 +361,4 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
     </div>
   );
 };
+
