@@ -55,10 +55,11 @@
 - [x] 題目列表與自訂題目建立 (`PromptPage.tsx`)
 - [x] 題目相機拍照上傳模擬與 OCR 辨識介面
 
-### Phase 9: 電子作文編輯器與文章庫 (Essay Editor & Library)
+### Phase 9: 電子作文編輯器與作品庫 (Essay Editor & Unified Writing Library)
 - [x] Tiptap 作文編輯器配置 (`EssayEditor.tsx`)
-- [x] 文章歷史紀錄與草稿庫管理 (`EssaysPage.tsx`, `EssayListDrawer.tsx`, `EssayCard.tsx`)
-- [x] 多篇作文檢視、搜尋、狀態篩選、切換與刪除管理
+- [x] 寫作作品庫與草稿管理 (`EssaysPage.tsx`, `EssayListDrawer.tsx`, `EssayCard.tsx`)
+- [x] 電子寫作與紙本模擬考作品雙軌彙整 (`UnifiedWritingItem`)
+- [x] 多篇作品檢視、搜尋、多維度篩選（電子/模考/草稿/評析）、切換與管理
 - [x] 字數即時統計與紙質筆記本排版
 - [x] 防抖自動儲存與狀態提示（`✓ 已儲存` / `↻ 儲存中`）
 
@@ -89,9 +90,10 @@
 - [x] 多頁拍照與頁面順序確認 (`ExamPhotoUpload.tsx`)
 - [x] 作文全文 OCR 辨識與人工校對介面 (`ExamOCRReview.tsx`)
 
-### Phase 16: 模擬考分析 (Mock Exam Analysis)
+### Phase 16: 模擬考分析與作品庫整合 (Mock Exam Analysis & Library Integration)
 - [x] 模擬考作答自動觸發 AI 評析與報告產出
 - [x] 模擬考歷次紀錄整合 (`ExamPage.tsx`)
+- [x] 模擬考作答紀錄無縫彙整至全站寫作作品庫 (`EssaysAPI.listUnified()`)
 
 ### Phase 17: 難字庫與測驗 (Hard Characters)
 - [x] 寫作時反白標記難字

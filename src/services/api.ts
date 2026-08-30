@@ -7,6 +7,7 @@ import {
   WeaknessItem,
   HardCharacter,
   ExamSession,
+  UnifiedWritingItem,
 } from '../types';
 import { storage, STORAGE_KEYS } from './storage';
 import { STARTER_PROMPTS, INTERVIEW_FALLBACK_QUESTIONS } from '../config/prompts';
@@ -415,6 +416,53 @@ export const EssaysAPI = {
       const items = storage.local.get<Essay[]>(STORAGE_KEYS.ESSAYS, []) || [];
       return items.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
     }
+  },
+
+  async listUnified(): Promise<UnifiedWritingItem[]> {
+    const [essays, exams, prompts] = await Promise.all([
+      EssaysAPI.list(),
+      ExamsAPI.list(),
+      PromptsAPI.list(),
+    ]);
+
+    const promptMap: Record<string, string> = {};
+    prompts.forEach((p) => {
+      promptMap[p.id] = p.title;
+    });
+
+    const unifiedEssays: UnifiedWritingItem[] = essays.map((e) => ({
+      id: e.id,
+      sourceType: 'editor',
+      title: e.title?.trim() || '無標題作文',
+      content: e.current_content || '',
+      promptId: e.prompt_id,
+      promptTitle: e.prompt_id ? promptMap[e.prompt_id] : undefined,
+      wordCount: e.word_count || 0,
+      status: e.status || 'draft',
+      createdAt: e.created_at || Date.now(),
+      updatedAt: e.updated_at || e.created_at || Date.now(),
+    }));
+
+    const unifiedExams: UnifiedWritingItem[] = exams.map((ex) => {
+      const promptTitle = ex.prompt_title || (ex.prompt_id ? promptMap[ex.prompt_id] : '紙本模擬考作答');
+      return {
+        id: ex.id,
+        sourceType: 'mock_exam',
+        title: promptTitle,
+        content: `模擬考作答紀錄（${ex.duration_minutes || 50} 分鐘手寫全真測驗）`,
+        promptId: ex.prompt_id,
+        promptTitle,
+        wordCount: 600,
+        status: ex.status === 'submitted' ? 'analyzed' : (ex.status as any) || 'submitted',
+        durationMinutes: ex.duration_minutes || 50,
+        createdAt: ex.started_at || Date.now(),
+        updatedAt: ex.ended_at || ex.started_at || Date.now(),
+      };
+    });
+
+    return [...unifiedEssays, ...unifiedExams].sort(
+      (a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt)
+    );
   },
 
   async get(id: string): Promise<{ essay: Essay; operations: any[] } | null> {

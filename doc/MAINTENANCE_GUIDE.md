@@ -10,7 +10,7 @@
 [ 客戶端 (React + Vite + Tailwind v4 + PWA) ]
       │
       ├─ 訪客試用模式 (Guest Mode)
-      │    ├─ 本機儲存: LocalStorage / IndexedDB (ID 前綴: temp_*)
+      │    ├─ 本機儲存: LocalStorage / IndexedDB (ID 前綴: temp_*) — 筆記、素材、多篇作文與歷程
       │    ├─ 檔案快取: 記憶體 Blob / DataURL
       │    └─ 無狀態 AI 服務: 素材訪談、題目反向推薦 (不寫入 D1)
       │
@@ -21,6 +21,7 @@
            ├─ 身份驗證: Authorization: Bearer <Token> 或 Cookie: mote_session=<Token>
            ├─ 結構化資料: Cloudflare D1 (SQLite) — 14 張資料表，強制 WHERE user_id = ? 多租戶隔離
            ├─ 物件儲存: Cloudflare R2 (稿紙與題目圖檔私有儲存)
+           ├─ 統一寫作作品庫: 電子寫作草稿與紙本模擬考作答雙軌無縫聚合 (EssaysAPI.listUnified)
            └─ 完整 AI 閉環: AI 六大修辭潤飾、作文八大面向評析、紙本 50 分鐘全真模考
 ```
 
@@ -36,10 +37,10 @@
 | `material_interview` | `true` (開放試用) | AI 追問訪談並產出素材卡 |
 | `materials_library` | `true` (開放試用) | 本機素材檢索與標籤篩選 |
 | `prompt_search` | `true` (開放試用) | 輸入題目由 AI 匹配素材 |
-| `essay_editor` | `true` (開放試用) | 紙質排版、字數統計、草稿儲存、歷史文章庫管理與多篇切換 |
+| `essay_editor` | `true` (開放試用) | 紙質排版、字數統計、電子作文草稿與統一寫作作品庫 (`/essays`, `EssayListDrawer`) |
 | `essay_ai_assist` | **`false` (會員專屬)** | 選取文句進行比喻、仿寫、擴寫等六大修辭建議 |
 | `essay_analysis` | **`false` (會員專屬)** | 作文交卷評析與八大面向打分報告 |
-| `paper_mock_exam` | **`false` (會員專屬)** | 50 分鐘全真計時與多頁 OCR 校對 |
+| `paper_mock_exam` | **`false` (會員專屬)** | 50 分鐘全真計時、多頁 OCR 校對與作品庫自動同步 |
 | `vocabulary_quiz` | `true` (開放試用) | 生難字翻卡注音測驗 |
 | `cloud_sync` | **`false` (會員專屬)** | iPad / Mac / 手機多裝置自動同步 |
 

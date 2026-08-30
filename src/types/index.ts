@@ -134,3 +134,18 @@ export interface ExamSession {
   ended_at?: number;
   status: 'in_progress' | 'submitted' | 'time_out' | 'canceled';
 }
+
+export interface UnifiedWritingItem {
+  id: string;
+  sourceType: 'editor' | 'mock_exam';
+  title: string;
+  content: string;
+  promptId?: string;
+  promptTitle?: string;
+  wordCount: number;
+  status: 'draft' | 'submitted' | 'analyzed';
+  durationMinutes?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+

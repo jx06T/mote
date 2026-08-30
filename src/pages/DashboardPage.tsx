@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QuickNotesAPI, MaterialsAPI, EssaysAPI, AnalysisAPI } from '../services/api';
-import { QuickNote, Material, Essay, WeaknessItem } from '../types';
+import { QuickNote, Material, Essay, WeaknessItem, UnifiedWritingItem } from '../types';
 import { QuickNoteInput } from '../components/quick-note/QuickNoteInput';
 import { MaterialCard } from '../components/materials/MaterialCard';
 import { Card } from '../components/ui/Card';
@@ -27,7 +27,7 @@ export const DashboardPage: React.FC = () => {
   const toast = useToast();
   const [quickNotes, setQuickNotes] = useState<QuickNote[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [essays, setEssays] = useState<Essay[]>([]);
+  const [writingItems, setWritingItems] = useState<UnifiedWritingItem[]>([]);
   const [weaknesses, setWeaknesses] = useState<WeaknessItem[]>([]);
 
   // Deepening Interview Modal
@@ -35,15 +35,15 @@ export const DashboardPage: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [notes, mats, esys, wks] = await Promise.all([
+      const [notes, mats, items, wks] = await Promise.all([
         QuickNotesAPI.list(),
         MaterialsAPI.list(),
-        EssaysAPI.list(),
+        EssaysAPI.listUnified(),
         AnalysisAPI.getWeaknesses(),
       ]);
       setQuickNotes(notes);
       setMaterials(mats);
-      setEssays(esys);
+      setWritingItems(items);
       setWeaknesses(wks);
     } catch (err) {
       console.error(err);
@@ -135,7 +135,7 @@ export const DashboardPage: React.FC = () => {
             <PenTool className="w-5 h-5" />
           </div>
           <span className="text-xs font-semibold text-text-main">文章與寫作</span>
-          <span className="text-[10px] text-text-muted mt-0.5">{essays.length} 篇作文記錄</span>
+          <span className="text-[10px] text-text-muted mt-0.5">{writingItems.length} 篇寫作作品</span>
         </button>
 
         <button
@@ -190,52 +190,64 @@ export const DashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* Recent Essays Section */}
+      {/* Recent Writing & Mock Exam Works Section */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-semibold text-text-soft flex items-center">
             <PenTool className="w-3.5 h-3.5 mr-1 text-primary" />
-            近期寫作紀錄與草稿
+            近期寫作與模考紀錄
           </h3>
           <button
             onClick={() => navigate('/essays')}
             className="text-xs text-primary hover:text-primary-hover font-medium flex items-center"
           >
-            文章庫
+            作品庫
             <ArrowRight className="w-3 h-3 ml-0.5" />
           </button>
         </div>
 
-        {essays.length === 0 ? (
+        {writingItems.length === 0 ? (
           <div className="py-6 text-center text-xs text-text-muted bg-surface rounded-xl border border-border-subtle p-4 space-y-1">
-            <p>尚未建立電子作文草稿。</p>
-            <p className="text-[11px]">點擊上方「電子寫作」即可開始自由書寫或挑選題目練習！</p>
+            <p>尚未建立寫作或模擬考作品。</p>
+            <p className="text-[11px]">開啟電子寫作或進行紙本模擬考，系統將在此為你即時同步呈現！</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {essays.slice(0, 2).map((esy) => (
+            {writingItems.slice(0, 2).map((item) => (
               <div
-                key={esy.id}
-                onClick={() => navigate(`/editor?id=${esy.id}`)}
+                key={item.id}
+                onClick={() => {
+                  if (item.sourceType === 'mock_exam') {
+                    navigate('/analysis');
+                  } else {
+                    navigate(`/editor?id=${item.id}`);
+                  }
+                }}
                 className="p-3.5 bg-surface border border-border-subtle hover:border-primary/40 rounded-xl transition-all shadow-xs cursor-pointer flex flex-col justify-between space-y-2 group"
               >
                 <div className="space-y-1">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-1">
                     <h4 className="font-display font-bold text-xs text-text-main truncate group-hover:text-primary transition-colors">
-                      {esy.title?.trim() || '無標題作文'}
+                      {item.title?.trim() || '無標題作品'}
                     </h4>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-elevated text-text-muted">
-                      {esy.status === 'analyzed' ? '已評析' : esy.status === 'submitted' ? '已交卷' : '草稿'}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-elevated text-text-muted shrink-0">
+                      {item.sourceType === 'mock_exam'
+                        ? '紙本模考'
+                        : item.status === 'analyzed'
+                        ? '已評析'
+                        : item.status === 'submitted'
+                        ? '已交卷'
+                        : '草稿'}
                     </span>
                   </div>
                   <p className="text-xs text-text-soft line-clamp-2 leading-relaxed">
-                    {esy.current_content?.replace(/<[^>]*>?/gm, ' ') || '尚無內容...'}
+                    {item.content?.replace(/<[^>]*>?/gm, ' ') || '尚無內容...'}
                   </p>
                 </div>
                 <div className="flex items-center justify-between pt-1 text-[11px] text-text-muted">
-                  <span className="font-mono">{esy.word_count || 0} 字</span>
+                  <span className="font-mono">{item.wordCount || 0} 字</span>
                   <span className="text-primary font-medium group-hover:underline">
-                    繼續撰寫
+                    {item.sourceType === 'mock_exam' ? '查看評析' : '繼續撰寫'}
                   </span>
                 </div>
               </div>

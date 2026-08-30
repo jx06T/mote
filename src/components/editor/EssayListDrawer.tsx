@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Essay, PromptItem } from '../../types';
-import { EssaysAPI, PromptsAPI } from '../../services/api';
+import { useNavigate } from 'react-router-dom';
+import { UnifiedWritingItem } from '../../types';
+import { EssaysAPI } from '../../services/api';
 import { EssayCard } from './EssayCard';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { Plus, Search, BookOpen, Layers } from 'lucide-react';
+import { Plus, Search, Layers, BookOpen, PenTool, Award } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 
 interface EssayListDrawerProps {
@@ -23,29 +23,20 @@ export const EssayListDrawer: React.FC<EssayListDrawerProps> = ({
   onSelectEssay,
   onCreateNewEssay,
 }) => {
+  const navigate = useNavigate();
   const toast = useToast();
-  const [essays, setEssays] = useState<Essay[]>([]);
-  const [prompts, setPrompts] = useState<Record<string, string>>({});
+  const [items, setItems] = useState<UnifiedWritingItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'submitted' | 'analyzed'>('all');
+  const [filterMode, setFilterMode] = useState<'all' | 'editor' | 'mock_exam' | 'draft' | 'analyzed'>('all');
   const [isLoading, setIsLoading] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [essayList, promptList] = await Promise.all([
-        EssaysAPI.list(),
-        PromptsAPI.list(),
-      ]);
-      setEssays(essayList);
-
-      const promptMap: Record<string, string> = {};
-      promptList.forEach((p: PromptItem) => {
-        promptMap[p.id] = p.title;
-      });
-      setPrompts(promptMap);
+      const unifiedList = await EssaysAPI.listUnified();
+      setItems(unifiedList);
     } catch (err) {
-      console.error('[Load Essays in Drawer Error]', err);
+      console.error('[Load Unified in Drawer Error]', err);
     } finally {
       setIsLoading(false);
     }
@@ -57,13 +48,17 @@ export const EssayListDrawer: React.FC<EssayListDrawerProps> = ({
     }
   }, [isOpen]);
 
-  const handleDeleteEssay = async (essay: Essay) => {
+  const handleDeleteItem = async (item: UnifiedWritingItem | any) => {
     try {
-      const ok = await EssaysAPI.delete(essay.id);
+      if (item.sourceType === 'mock_exam') {
+        toast.info('紙本模擬考為正式測驗紀錄，不提供刪除。');
+        return;
+      }
+      const ok = await EssaysAPI.delete(item.id);
       if (ok) {
-        toast.success(`已成功刪除「${essay.title || '無標題作文'}」`);
+        toast.success(`已成功刪除「${item.title || '無標題作文'}」`);
         await loadData();
-        if (currentEssayId === essay.id) {
+        if (currentEssayId === item.id) {
           onCreateNewEssay();
         }
       } else {
@@ -74,14 +69,26 @@ export const EssayListDrawer: React.FC<EssayListDrawerProps> = ({
     }
   };
 
-  const filteredEssays = essays.filter((item) => {
-    if (statusFilter !== 'all' && item.status !== statusFilter) {
-      return false;
+  const handleSelectItem = (selected: UnifiedWritingItem | any) => {
+    if (selected.sourceType === 'mock_exam') {
+      onClose();
+      navigate('/analysis');
+      return;
     }
+    onSelectEssay(selected.id);
+    onClose();
+  };
+
+  const filteredItems = items.filter((item) => {
+    if (filterMode === 'editor' && item.sourceType !== 'editor') return false;
+    if (filterMode === 'mock_exam' && item.sourceType !== 'mock_exam') return false;
+    if (filterMode === 'draft' && item.status !== 'draft') return false;
+    if (filterMode === 'analyzed' && item.status !== 'analyzed' && item.status !== 'submitted') return false;
+
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     const matchTitle = (item.title || '').toLowerCase().includes(q);
-    const matchContent = (item.current_content || '').toLowerCase().includes(q);
+    const matchContent = (item.content || '').toLowerCase().includes(q);
     return matchTitle || matchContent;
   });
 
@@ -89,18 +96,18 @@ export const EssayListDrawer: React.FC<EssayListDrawerProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="我的寫作紀錄與文章庫"
+      title="我的寫作作品庫（電子作文與紙本模考）"
       maxWidth="xl"
     >
       <div className="space-y-4">
-        {/* Top Control Bar: Action & Search */}
+        {/* Top Action & Search */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="flex-1">
             <div className="relative">
               <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="搜尋文章標題或內容關鍵字..."
+                placeholder="搜尋作品標題或內容關鍵字..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-1.5 text-xs bg-page-bg border border-border-subtle rounded-xl text-text-main placeholder:text-text-muted focus:outline-none focus:border-primary/60"
@@ -122,64 +129,78 @@ export const EssayListDrawer: React.FC<EssayListDrawerProps> = ({
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex items-center space-x-1 border-b border-border-subtle pb-2 text-xs">
+        <div className="flex items-center space-x-1 border-b border-border-subtle pb-2 text-xs overflow-x-auto no-scrollbar">
           <button
-            onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1 rounded-lg transition-colors font-medium ${
-              statusFilter === 'all'
-                ? 'bg-primary/10 text-primary'
+            onClick={() => setFilterMode('all')}
+            className={`px-3 py-1 rounded-lg transition-colors font-medium shrink-0 ${
+              filterMode === 'all'
+                ? 'bg-primary/10 text-primary font-semibold'
                 : 'text-text-muted hover:text-text-main'
             }`}
           >
-            全部 ({essays.length})
+            全部作品 ({items.length})
           </button>
           <button
-            onClick={() => setStatusFilter('draft')}
-            className={`px-3 py-1 rounded-lg transition-colors font-medium ${
-              statusFilter === 'draft'
-                ? 'bg-primary/10 text-primary'
+            onClick={() => setFilterMode('editor')}
+            className={`px-3 py-1 rounded-lg transition-colors font-medium shrink-0 ${
+              filterMode === 'editor'
+                ? 'bg-primary/10 text-primary font-semibold'
                 : 'text-text-muted hover:text-text-main'
             }`}
           >
-            草稿 ({essays.filter((e) => e.status === 'draft').length})
+            電子寫作 ({items.filter((i) => i.sourceType === 'editor').length})
           </button>
           <button
-            onClick={() => setStatusFilter('submitted')}
-            className={`px-3 py-1 rounded-lg transition-colors font-medium ${
-              statusFilter === 'submitted'
-                ? 'bg-primary/10 text-primary'
+            onClick={() => setFilterMode('mock_exam')}
+            className={`px-3 py-1 rounded-lg transition-colors font-medium shrink-0 ${
+              filterMode === 'mock_exam'
+                ? 'bg-primary/10 text-primary font-semibold'
                 : 'text-text-muted hover:text-text-main'
             }`}
           >
-            已交卷 ({essays.filter((e) => e.status === 'submitted').length})
+            紙本模考 ({items.filter((i) => i.sourceType === 'mock_exam').length})
           </button>
           <button
-            onClick={() => setStatusFilter('analyzed')}
-            className={`px-3 py-1 rounded-lg transition-colors font-medium ${
-              statusFilter === 'analyzed'
-                ? 'bg-primary/10 text-primary'
+            onClick={() => setFilterMode('draft')}
+            className={`px-3 py-1 rounded-lg transition-colors font-medium shrink-0 ${
+              filterMode === 'draft'
+                ? 'bg-primary/10 text-primary font-semibold'
                 : 'text-text-muted hover:text-text-main'
             }`}
           >
-            已評析 ({essays.filter((e) => e.status === 'analyzed').length})
+            草稿中 ({items.filter((i) => i.status === 'draft').length})
+          </button>
+          <button
+            onClick={() => setFilterMode('analyzed')}
+            className={`px-3 py-1 rounded-lg transition-colors font-medium shrink-0 ${
+              filterMode === 'analyzed'
+                ? 'bg-primary/10 text-primary font-semibold'
+                : 'text-text-muted hover:text-text-main'
+            }`}
+          >
+            已評析 (
+            {
+              items.filter((i) => i.status === 'analyzed' || i.status === 'submitted').length
+            }
+            )
           </button>
         </div>
 
-        {/* Essay List Grid / Scrollable */}
+        {/* List Grid / Scrollable */}
         <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-1 no-scrollbar">
           {isLoading ? (
             <div className="py-12 text-center text-xs text-text-muted">
-              載入文章紀錄中...
+              載入寫作作品中...
             </div>
-          ) : filteredEssays.length === 0 ? (
+          ) : filteredItems.length === 0 ? (
             <div className="py-12 text-center text-xs text-text-muted bg-page-bg rounded-2xl border border-border-subtle/60 p-6 space-y-3">
               <Layers className="w-8 h-8 text-text-muted/60 mx-auto" />
               <div className="space-y-1">
                 <p className="font-semibold text-text-main">
-                  {searchQuery || statusFilter !== 'all' ? '查無符合條件的作文' : '目前尚無儲存的文章紀錄'}
+                  {searchQuery || filterMode !== 'all' ? '查無符合條件的寫作紀錄' : '目前尚無儲存的作品紀錄'}
                 </p>
                 <p className="text-[11px]">
-                  在編輯器中書寫時，系統將自動為你即時保存草稿與修改歷程。
+                  在電子寫作中書寫或完成紙本模擬考，系統皆會自動同步至此作品庫。
                 </p>
               </div>
               <Button
@@ -191,22 +212,18 @@ export const EssayListDrawer: React.FC<EssayListDrawerProps> = ({
                 className="text-xs mt-2"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" />
-                立即開始第一篇寫作
+                立即開啟新寫作
               </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {filteredEssays.map((essay) => (
+              {filteredItems.map((item) => (
                 <EssayCard
-                  key={essay.id}
-                  essay={essay}
-                  promptTitle={essay.prompt_id ? prompts[essay.prompt_id] : undefined}
-                  isActive={essay.id === currentEssayId}
-                  onSelect={(selected) => {
-                    onSelectEssay(selected.id);
-                    onClose();
-                  }}
-                  onDelete={handleDeleteEssay}
+                  key={item.id}
+                  essay={item}
+                  isActive={item.id === currentEssayId}
+                  onSelect={handleSelectItem}
+                  onDelete={handleDeleteItem}
                 />
               ))}
             </div>

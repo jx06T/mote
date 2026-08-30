@@ -1,36 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Essay, PromptItem } from '../types';
-import { EssaysAPI, PromptsAPI } from '../services/api';
+import { UnifiedWritingItem } from '../types';
+import { EssaysAPI } from '../services/api';
 import { EssayCard } from '../components/editor/EssayCard';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { Search, Plus, PenTool, BookOpen, CheckCircle, FileEdit, Layers } from 'lucide-react';
+import { Search, Plus, PenTool, BookOpen, CheckCircle, FileEdit, Layers, Award } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 export const EssaysPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
-  const [essays, setEssays] = useState<Essay[]>([]);
-  const [prompts, setPrompts] = useState<Record<string, string>>({});
+  const [items, setItems] = useState<UnifiedWritingItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'submitted' | 'analyzed'>('all');
+  const [filterMode, setFilterMode] = useState<'all' | 'editor' | 'mock_exam' | 'draft' | 'analyzed'>('all');
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [essayList, promptList] = await Promise.all([
-        EssaysAPI.list(),
-        PromptsAPI.list(),
-      ]);
-      setEssays(essayList);
-
-      const promptMap: Record<string, string> = {};
-      promptList.forEach((p: PromptItem) => {
-        promptMap[p.id] = p.title;
-      });
-      setPrompts(promptMap);
+      const unifiedList = await EssaysAPI.listUnified();
+      setItems(unifiedList);
     } catch (err) {
       console.error('[Load Essays Page Error]', err);
     } finally {
@@ -42,11 +32,15 @@ export const EssaysPage: React.FC = () => {
     loadData();
   }, []);
 
-  const handleDeleteEssay = async (essay: Essay) => {
+  const handleDeleteItem = async (item: UnifiedWritingItem | any) => {
     try {
-      const ok = await EssaysAPI.delete(essay.id);
+      if (item.sourceType === 'mock_exam') {
+        toast.info('紙本模擬考為正式測驗紀錄，不提供刪除。');
+        return;
+      }
+      const ok = await EssaysAPI.delete(item.id);
       if (ok) {
-        toast.success(`已成功刪除「${essay.title || '無標題作文'}」`);
+        toast.success(`已成功刪除「${item.title || '無標題作文'}」`);
         await loadData();
       } else {
         toast.error('刪除作文失敗，請稍後重試。');
@@ -56,43 +50,65 @@ export const EssaysPage: React.FC = () => {
     }
   };
 
-  const totalWords = essays.reduce((acc, cur) => acc + (cur.word_count || 0), 0);
-  const draftCount = essays.filter((e) => e.status === 'draft').length;
-  const submittedCount = essays.filter((e) => e.status === 'submitted').length;
-  const analyzedCount = essays.filter((e) => e.status === 'analyzed').length;
-
-  const filteredEssays = essays.filter((item) => {
-    if (statusFilter !== 'all' && item.status !== statusFilter) {
-      return false;
+  const handleSelectItem = (selected: UnifiedWritingItem | any) => {
+    if (selected.sourceType === 'mock_exam') {
+      navigate('/analysis');
+      return;
     }
+    navigate(`/editor?id=${selected.id}`);
+  };
+
+  const totalWords = items.reduce((acc, cur) => acc + (cur.wordCount || 0), 0);
+  const editorCount = items.filter((i) => i.sourceType === 'editor').length;
+  const mockExamCount = items.filter((i) => i.sourceType === 'mock_exam').length;
+  const draftCount = items.filter((i) => i.status === 'draft').length;
+  const analyzedCount = items.filter((i) => i.status === 'analyzed' || i.status === 'submitted').length;
+
+  const filteredItems = items.filter((item) => {
+    if (filterMode === 'editor' && item.sourceType !== 'editor') return false;
+    if (filterMode === 'mock_exam' && item.sourceType !== 'mock_exam') return false;
+    if (filterMode === 'draft' && item.status !== 'draft') return false;
+    if (filterMode === 'analyzed' && item.status !== 'analyzed' && item.status !== 'submitted') return false;
+
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     const matchTitle = (item.title || '').toLowerCase().includes(q);
-    const matchContent = (item.current_content || '').toLowerCase().includes(q);
+    const matchContent = (item.content || '').toLowerCase().includes(q);
     return matchTitle || matchContent;
   });
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-      {/* Header & Main Action */}
+      {/* Header & Main Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="font-display font-bold text-2xl text-text-main">
-            我的寫作紀錄與文章庫
+            我的寫作紀錄與作品庫
           </h1>
           <p className="text-xs text-text-muted">
-            完整保存每篇作文草稿、累積字數、評析結果與寫作思考歷程。
+            全面整合「電子寫作」與「紙本模擬考」所有歷史作品、累積字數、評析結果與思考歷程。
           </p>
         </div>
 
-        <Button
-          size="sm"
-          onClick={() => navigate('/editor')}
-          className="rounded-xl text-xs py-2 px-3.5 shadow-xs shrink-0 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          開啟全新寫作
-        </Button>
+        <div className="flex items-center space-x-2 shrink-0 self-start sm:self-auto">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => navigate('/exams')}
+            className="rounded-xl text-xs py-2 px-3 shadow-xs bg-surface"
+          >
+            <Award className="w-4 h-4 mr-1.5 text-primary" />
+            紙本模擬考
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => navigate('/editor')}
+            className="rounded-xl text-xs py-2 px-3.5 shadow-xs"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            開啟電子寫作
+          </Button>
+        </div>
       </div>
 
       {/* Summary Statistics Cards */}
@@ -102,8 +118,8 @@ export const EssaysPage: React.FC = () => {
             <BookOpen className="w-4.5 h-4.5" />
           </div>
           <div>
-            <p className="text-[11px] text-text-muted">總文章數</p>
-            <p className="font-display font-bold text-base text-text-main">{essays.length} 篇</p>
+            <p className="text-[11px] text-text-muted">總寫作作品</p>
+            <p className="font-display font-bold text-base text-text-main">{items.length} 篇</p>
           </div>
         </Card>
 
@@ -124,7 +140,7 @@ export const EssaysPage: React.FC = () => {
             <FileEdit className="w-4.5 h-4.5" />
           </div>
           <div>
-            <p className="text-[11px] text-text-muted">進行中草稿</p>
+            <p className="text-[11px] text-text-muted">電子草稿中</p>
             <p className="font-display font-bold text-base text-text-main">{draftCount} 篇</p>
           </div>
         </Card>
@@ -134,8 +150,8 @@ export const EssaysPage: React.FC = () => {
             <CheckCircle className="w-4.5 h-4.5" />
           </div>
           <div>
-            <p className="text-[11px] text-text-muted">已完成評析</p>
-            <p className="font-display font-bold text-base text-text-main">{analyzedCount + submittedCount} 篇</p>
+            <p className="text-[11px] text-text-muted">完成評析（含模考）</p>
+            <p className="font-display font-bold text-base text-text-main">{analyzedCount} 篇</p>
           </div>
         </Card>
       </div>
@@ -156,19 +172,39 @@ export const EssaysPage: React.FC = () => {
         {/* Filter Tabs */}
         <div className="flex items-center space-x-1.5 text-xs overflow-x-auto no-scrollbar">
           <button
-            onClick={() => setStatusFilter('all')}
+            onClick={() => setFilterMode('all')}
             className={`px-3 py-1.5 rounded-xl transition-all font-medium shrink-0 ${
-              statusFilter === 'all'
+              filterMode === 'all'
                 ? 'bg-primary text-white shadow-xs font-semibold'
                 : 'bg-surface border border-border-subtle text-text-soft hover:text-text-main'
             }`}
           >
-            全部 ({essays.length})
+            全部 ({items.length})
           </button>
           <button
-            onClick={() => setStatusFilter('draft')}
+            onClick={() => setFilterMode('editor')}
             className={`px-3 py-1.5 rounded-xl transition-all font-medium shrink-0 ${
-              statusFilter === 'draft'
+              filterMode === 'editor'
+                ? 'bg-primary text-white shadow-xs font-semibold'
+                : 'bg-surface border border-border-subtle text-text-soft hover:text-text-main'
+            }`}
+          >
+            電子寫作 ({editorCount})
+          </button>
+          <button
+            onClick={() => setFilterMode('mock_exam')}
+            className={`px-3 py-1.5 rounded-xl transition-all font-medium shrink-0 ${
+              filterMode === 'mock_exam'
+                ? 'bg-primary text-white shadow-xs font-semibold'
+                : 'bg-surface border border-border-subtle text-text-soft hover:text-text-main'
+            }`}
+          >
+            紙本模考 ({mockExamCount})
+          </button>
+          <button
+            onClick={() => setFilterMode('draft')}
+            className={`px-3 py-1.5 rounded-xl transition-all font-medium shrink-0 ${
+              filterMode === 'draft'
                 ? 'bg-primary text-white shadow-xs font-semibold'
                 : 'bg-surface border border-border-subtle text-text-soft hover:text-text-main'
             }`}
@@ -176,19 +212,9 @@ export const EssaysPage: React.FC = () => {
             草稿 ({draftCount})
           </button>
           <button
-            onClick={() => setStatusFilter('submitted')}
+            onClick={() => setFilterMode('analyzed')}
             className={`px-3 py-1.5 rounded-xl transition-all font-medium shrink-0 ${
-              statusFilter === 'submitted'
-                ? 'bg-primary text-white shadow-xs font-semibold'
-                : 'bg-surface border border-border-subtle text-text-soft hover:text-text-main'
-            }`}
-          >
-            已交卷 ({submittedCount})
-          </button>
-          <button
-            onClick={() => setStatusFilter('analyzed')}
-            className={`px-3 py-1.5 rounded-xl transition-all font-medium shrink-0 ${
-              statusFilter === 'analyzed'
+              filterMode === 'analyzed'
                 ? 'bg-primary text-white shadow-xs font-semibold'
                 : 'bg-surface border border-border-subtle text-text-soft hover:text-text-main'
             }`}
@@ -201,39 +227,47 @@ export const EssaysPage: React.FC = () => {
       {/* Main Essays Grid */}
       {isLoading ? (
         <div className="py-16 text-center text-xs text-text-muted">
-          載入文章庫中...
+          載入寫作作品庫中...
         </div>
-      ) : filteredEssays.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <div className="py-16 text-center text-xs text-text-muted bg-surface rounded-2xl border border-border-subtle p-8 space-y-4 shadow-xs">
           <Layers className="w-10 h-10 text-primary/60 mx-auto" />
           <div className="space-y-1">
             <h3 className="font-display font-bold text-sm text-text-main">
-              {searchQuery || statusFilter !== 'all' ? '查無符合條件的作文' : '目前尚無文章紀錄'}
+              {searchQuery || filterMode !== 'all' ? '查無符合條件的寫作紀錄' : '目前尚無作品紀錄'}
             </h3>
             <p className="text-xs text-text-soft max-w-sm mx-auto">
-              開啟電子寫作，系統會在您輸入時即時自動保存草稿，並完整記錄各階段的修改思考歷程。
+              開啟電子寫作或進行紙本模擬考，系統將自動為你留存每一篇作品與多面向評析報告。
             </p>
           </div>
-          <div className="pt-2">
+          <div className="flex justify-center space-x-3 pt-2">
             <Button
               size="sm"
               onClick={() => navigate('/editor')}
               className="text-xs"
             >
               <Plus className="w-3.5 h-3.5 mr-1" />
-              開始第一篇寫作
+              開始電子寫作
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/exams')}
+              className="text-xs"
+            >
+              <Award className="w-3.5 h-3.5 mr-1" />
+              前往模擬考
             </Button>
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredEssays.map((essay) => (
+          {filteredItems.map((item) => (
             <EssayCard
-              key={essay.id}
-              essay={essay}
-              promptTitle={essay.prompt_id ? prompts[essay.prompt_id] : undefined}
-              onSelect={(selected) => navigate(`/editor?id=${selected.id}`)}
-              onDelete={handleDeleteEssay}
+              key={item.id}
+              essay={item}
+              onSelect={handleSelectItem}
+              onDelete={handleDeleteItem}
             />
           ))}
         </div>
