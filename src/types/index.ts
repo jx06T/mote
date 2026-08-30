@@ -66,13 +66,14 @@ export interface Essay {
 export interface EssayOperation {
   id: string;
   essay_id: string;
-  user_id: string;
+  user_id?: string;
   operation_type: 'INSERT' | 'DELETE' | 'REPLACE' | 'AI_SUGGESTION' | 'AI_ACCEPT';
   position: number;
   length: number;
   old_content?: string;
   new_content?: string;
-  source: 'user' | 'ai';
+  paragraph_index?: number;
+  source?: 'user' | 'ai';
   created_at: number;
 }
 

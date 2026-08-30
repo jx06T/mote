@@ -5,7 +5,7 @@ import CharacterCount from '@tiptap/extension-character-count';
 import Placeholder from '@tiptap/extension-placeholder';
 import { SelectionToolbar } from './SelectionToolbar';
 import { AIResultModal } from './AIResultModal';
-import { RevisionTimeline } from './RevisionTimeline';
+import { RevisionTimeline, getParagraphNumber } from './RevisionTimeline';
 import { EssaysAPI, VocabularyAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -164,6 +164,7 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
       if (currentText !== oldText) {
         const diff = getDiff(oldText, currentText);
         const now = Date.now();
+        const paraIndex = getParagraphNumber(currentText, diff.start);
 
         if (diff.removed.trim() && diff.added.trim()) {
           // Replace operation
@@ -173,6 +174,7 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
             operation_type: 'REPLACE',
             position: diff.start,
             length: diff.added.length,
+            paragraph_index: paraIndex,
             old_content: diff.removed.trim(),
             new_content: diff.added.trim(),
             source: 'user',
@@ -188,6 +190,7 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
             operation_type: 'DELETE',
             position: diff.start,
             length: diff.removed.length,
+            paragraph_index: paraIndex,
             old_content: diff.removed.trim(),
             source: 'user',
             created_at: now,
@@ -202,6 +205,7 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
             operation_type: 'INSERT',
             position: diff.start,
             length: diff.added.length,
+            paragraph_index: paraIndex,
             new_content: diff.added.trim(),
             source: 'user',
             created_at: now,
@@ -254,11 +258,18 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
       scene: '加畫面',
     };
 
+    const curText = editor?.getText() || '';
+    const pos = selectedRange?.from || 0;
+    const paraIndex = getParagraphNumber(curText, pos);
+
     // Log AI Suggestion intent
     const sugOp = {
       id: `op_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       essay_id: currentEssayId || '',
       operation_type: 'AI_SUGGESTION',
+      position: pos,
+      length: selectedText.length,
+      paragraph_index: paraIndex,
       old_content: selectedText,
       new_content: `思考「${actionLabels[action] || action}」修辭引導`,
       source: 'ai',
@@ -282,6 +293,10 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
   // Accept AI Rewrite Suggestion
   const handleAcceptAISuggestion = (newText: string) => {
     if (!editor || !selectedRange) return;
+    const pos = selectedRange.from;
+    const curText = editor.getText();
+    const paraIndex = getParagraphNumber(curText, pos);
+
     editor
       .chain()
       .focus()
@@ -294,6 +309,9 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
       id: `op_${now}_${Math.random().toString(36).slice(2, 6)}`,
       essay_id: currentEssayId || '',
       operation_type: 'AI_ACCEPT',
+      position: pos,
+      length: newText.length,
+      paragraph_index: paraIndex,
       old_content: selectedText,
       new_content: newText,
       source: 'ai',
@@ -302,6 +320,19 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
     setOperations((prev) => [newOp, ...prev]);
     prevTextRef.current = editor.getText();
     setSaveStatus('saving');
+  };
+
+  // Locate and scroll to operation position in editor
+  const handleLocateOperation = (position: number, length: number = 0) => {
+    if (!editor) return;
+    setShowHistory(false);
+    const docSize = editor.state.doc.content.size;
+    const safePos = Math.min(Math.max(1, position + 1), docSize);
+    const safeTo = Math.min(safePos + Math.max(1, length), docSize);
+
+    editor.chain().focus().setTextSelection({ from: safePos, to: safeTo }).scrollIntoView().run();
+    const para = getParagraphNumber(editor.getText(), position);
+    showToast('info', `已定位至第 ${para} 段對應位置`);
   };
 
   // Mark Hard Character
@@ -456,8 +487,13 @@ export const EssayEditor: React.FC<EssayEditorProps> = ({
         isOpen={showHistory}
         onClose={() => setShowHistory(false)}
         title="寫作思考與修改歷程"
+        maxWidth="lg"
       >
-        <RevisionTimeline operations={operations} />
+        <RevisionTimeline
+          operations={operations}
+          currentText={editor?.getText() || ''}
+          onLocate={handleLocateOperation}
+        />
       </Modal>
     </div>
   );
