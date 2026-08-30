@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { User, Shield, Moon, Sun, Download, RefreshCw, LogOut } from 'lucide-react';
+import { User, Shield, Moon, Sun, Download, Sparkles, LogOut, Cloud } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
+  const { isLoggedIn, currentUser, openAuthModal, logout } = useAuth();
   const [isDark, setIsDark] = useState(
     document.documentElement.classList.contains('dark')
   );
@@ -54,18 +56,61 @@ export const SettingsPage: React.FC = () => {
           <User className="w-3.5 h-3.5 mr-1" />
           帳號資訊
         </h2>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-base font-serif">
-              學
+
+        {isLoggedIn ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-base font-serif">
+                  {currentUser?.name?.slice(0, 1) || '學'}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-text-main">
+                    {currentUser?.name || '高中學員'}
+                  </p>
+                  <p className="text-xs text-text-muted">{currentUser?.email}</p>
+                </div>
+              </div>
+              <Badge variant="success">Google 帳號已連線</Badge>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-text-main">高中學員</p>
-              <p className="text-xs text-text-muted">student@mote.app</p>
+
+            <div className="pt-2 border-t border-border-subtle flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={logout}
+                className="text-xs text-status-danger hover:bg-status-danger/10"
+              >
+                <LogOut className="w-3.5 h-3.5 mr-1" />
+                登出帳號
+              </Button>
             </div>
           </div>
-          <Badge variant="success">Google OAuth 已連線</Badge>
-        </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-neutral-100 text-text-muted flex items-center justify-center font-bold text-sm font-serif">
+                  訪
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-text-main">本機訪客試用模式</p>
+                  <p className="text-xs text-text-muted">
+                    素材、筆記與草稿僅暫存於此瀏覽器（未綁定雲端帳號）
+                  </p>
+                </div>
+              </div>
+              <Badge variant="warning">訪客試用中</Badge>
+            </div>
+
+            <div className="pt-2 border-t border-border-subtle flex justify-end">
+              <Button size="sm" onClick={openAuthModal} className="text-xs shadow-xs">
+                <Cloud className="w-3.5 h-3.5 mr-1" />
+                登入 Google 帳號啟用雲端同步
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Appearance Settings */}
