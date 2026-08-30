@@ -61,13 +61,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const authToken = params.get('auth_token');
     const userId = params.get('user_id');
     const userName = params.get('user_name');
+    const userEmail = params.get('user_email');
+    const avatarUrl = params.get('avatar_url');
 
     if (authToken && userId) {
       const newUser: User = {
         id: userId,
-        email: 'student@mote.app',
+        email: userEmail || '',
         name: userName || '高中學員',
-        avatarUrl: '',
+        avatarUrl: avatarUrl || '',
       };
       login(newUser, authToken);
 
@@ -75,21 +77,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       params.delete('auth_token');
       params.delete('user_id');
       params.delete('user_name');
+      params.delete('user_email');
+      params.delete('avatar_url');
       const newQuery = params.toString();
       const newUrl = window.location.pathname + (newQuery ? `?${newQuery}` : '') + window.location.hash;
       window.history.replaceState({}, document.title, newUrl);
     }
   }, [login]);
 
-  // 2. 驗證現有 Token 是否有效
+  // 2. 驗證現有 Token 是否有效並同步最新個人檔案
   useEffect(() => {
     const token = storage.local.getString(STORAGE_KEYS.TOKEN);
-    if (token && currentUser) {
+    if (token) {
       fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` },
       })
-        .then((res) => {
-          if (!res.ok) {
+        .then(async (res) => {
+          if (res.ok) {
+            const userData = (await res.json()) as Partial<User>;
+            if (userData && userData.id) {
+              const updatedUser: User = {
+                id: userData.id,
+                email: userData.email || '',
+                name: userData.name || '高中學員',
+                avatarUrl: userData.avatarUrl || '',
+              };
+              setCurrentUser(updatedUser);
+              storage.local.set(STORAGE_KEYS.USER, updatedUser);
+            }
+          } else {
             // Token 失效，轉為訪客身分
             setCurrentUser(null);
             storage.local.remove(STORAGE_KEYS.USER);

@@ -163,7 +163,14 @@ const handleGoogleCallback = async (c: AuthContext) => {
 
       // 設定 Cookie 並跳轉回首頁
       c.header('Set-Cookie', `mote_session=${sessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`);
-      return c.redirect(`${frontendOrigin}/?auth_token=${sessionToken}&user_id=${userId}&user_name=${encodeURIComponent(name)}`);
+      const redirectParams = new URLSearchParams({
+        auth_token: sessionToken,
+        user_id: userId,
+        user_name: name,
+        user_email: email,
+        avatar_url: avatarUrl,
+      });
+      return c.redirect(`${frontendOrigin}/?${redirectParams.toString()}`);
     }
 
     return c.redirect(`${frontendOrigin}/?login=success`);
